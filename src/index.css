@@ -161,6 +161,18 @@
   .animate-sun-pulse {
     animation: sun-pulse 3s ease-in-out infinite;
   }
+ 
+   .animate-cloud-drift {
+     animation: cloud-drift 12s ease-in-out infinite;
+   }
+ 
+   .animate-water-shimmer {
+     animation: water-shimmer 3s linear infinite;
+   }
+ 
+   .animate-spin-slow {
+     animation: spin-slow 20s linear infinite;
+   }
 }
 
 @keyframes rain {
@@ -195,6 +207,18 @@
   }
 }
 
+ @keyframes cloud-drift {
+   0% {
+     transform: translateX(-5px);
+   }
+   50% {
+     transform: translateX(15px);
+   }
+   100% {
+     transform: translateX(-5px);
+   }
+ }
+ 
 @keyframes sun-pulse {
   0%, 100% {
     transform: scale(1);
@@ -205,3 +229,38 @@
     opacity: 0.9;
   }
 }
+ 
+ @keyframes water-shimmer {
+   0% {
+     transform: translateX(-100%);
+   }
+   100% {
+     transform: translateX(100%);
+   }
+ }
+ 
+ @keyframes spin-slow {
+   from {
+     transform: rotate(0deg);
+   }
+   to {
+     transform: rotate(360deg);
+   }
+ }
+ 
+ /* Reduced motion support */
+ @media (prefers-reduced-motion: reduce) {
+   .animate-rain,
+   .animate-sway,
+   .animate-cloud,
+   .animate-sun-pulse,
+   .animate-cloud-drift,
+   .animate-water-shimmer,
+   .animate-spin-slow {
+     animation: none !important;
+   }
+   
+   * {
+     transition-duration: 0.01ms !important;
+   }
+ }
