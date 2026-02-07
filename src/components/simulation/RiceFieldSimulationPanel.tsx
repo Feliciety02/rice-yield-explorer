@@ -1,60 +1,76 @@
- import { useEffect, useRef, useState, useCallback, useMemo } from "react";
- import {
-   Play,
-   Pause,
-   SkipForward,
-   RotateCcw,
-   Sun,
-   Cloud,
-   CloudRain,
-   ZoomIn,
-   ZoomOut,
-   Maximize2,
-   Repeat,
-   Settings2,
- } from "lucide-react";
- import { Button } from "@/components/ui/button";
- import { Card, CardContent, CardHeader } from "@/components/ui/card";
- import { Switch } from "@/components/ui/switch";
- import { Slider } from "@/components/ui/slider";
- import {
-   Tooltip,
-   TooltipContent,
-   TooltipProvider,
-   TooltipTrigger,
- } from "@/components/ui/tooltip";
- import {
-   Popover,
-   PopoverContent,
-   PopoverTrigger,
- } from "@/components/ui/popover";
- import { SeasonResult, RainfallLevel } from "@/types/simulation";
- import { cn } from "@/lib/utils";
- import { useZoomPan } from "@/hooks/useZoomPan";
- import { useReducedMotion } from "@/hooks/useReducedMotion";
- 
- interface RiceFieldSimulationPanelProps {
-   seasons: SeasonResult[];
-   activeSeasonIndex: number;
-   onSelectSeason: (index: number) => void;
-   isPlaying: boolean;
-   onPlayPause: () => void;
-   onStep: () => void;
-   onReset: () => void;
- }
- 
- type PlaybackSpeed = 0.5 | 1 | 2;
- 
- const RainfallIcon = ({ level }: { level: RainfallLevel }) => {
-   switch (level) {
-     case "low":
-       return <Sun className="w-4 h-4 text-amber-500" />;
-     case "normal":
-       return <Cloud className="w-4 h-4 text-slate-500" />;
-     case "high":
-       return <CloudRain className="w-4 h-4 text-blue-500" />;
-   }
- };
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import {
+  Play,
+  Pause,
+  SkipForward,
+  RotateCcw,
+  Sun,
+  Cloud,
+  CloudRain,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+  Repeat,
+  Settings2,
+  Sunrise,
+  Sunset,
+  Moon,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { SeasonResult, RainfallLevel } from "@/types/simulation";
+import { cn } from "@/lib/utils";
+import { useZoomPan } from "@/hooks/useZoomPan";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
+import { useTimeOfDay, TimeOfDay, timeOfDayConfig } from "@/hooks/useTimeOfDay";
+
+interface RiceFieldSimulationPanelProps {
+  seasons: SeasonResult[];
+  activeSeasonIndex: number;
+  onSelectSeason: (index: number) => void;
+  isPlaying: boolean;
+  onPlayPause: () => void;
+  onStep: () => void;
+  onReset: () => void;
+}
+
+type PlaybackSpeed = 0.5 | 1 | 2;
+
+const RainfallIcon = ({ level }: { level: RainfallLevel }) => {
+  switch (level) {
+    case "low":
+      return <Sun className="w-4 h-4 text-amber-500" />;
+    case "normal":
+      return <Cloud className="w-4 h-4 text-slate-500" />;
+    case "high":
+      return <CloudRain className="w-4 h-4 text-blue-500" />;
+  }
+};
+
+const TimeIcon = ({ time }: { time: TimeOfDay }) => {
+  switch (time) {
+    case "sunrise":
+      return <Sunrise className="w-3.5 h-3.5 text-orange-400" />;
+    case "noon":
+      return <Sun className="w-3.5 h-3.5 text-amber-500" />;
+    case "sunset":
+      return <Sunset className="w-3.5 h-3.5 text-rose-400" />;
+    case "night":
+      return <Moon className="w-3.5 h-3.5 text-indigo-300" />;
+  }
+};
  
  const getStatusText = (season: SeasonResult) => {
    const labels: Record<RainfallLevel, string> = {
@@ -73,43 +89,52 @@
    onPlayPause,
    onStep,
    onReset,
- }: RiceFieldSimulationPanelProps) {
-   const intervalRef = useRef<NodeJS.Timeout | null>(null);
-   const currentSeason = seasons[activeSeasonIndex];
-   const prefersReducedMotion = useReducedMotion();
- 
-   // Enhanced state
-   const [smoothTransitions, setSmoothTransitions] = useState(true);
-   const [playbackSpeed, setPlaybackSpeed] = useState<PlaybackSpeed>(1);
-   const [isLooping, setIsLooping] = useState(true);
-   const [showMinimap, setShowMinimap] = useState(true);
- 
-   // Zoom and pan
-   const {
-     containerRef,
-     scale,
-     translateX,
-     translateY,
-     handleDoubleClick,
-     handleMouseDown,
-     handleMouseMove,
-     handleMouseUp,
-     resetZoom,
-     panTo,
-     isZoomed,
-   } = useZoomPan({ minScale: 1, maxScale: 3 });
- 
-   // Timeline scrubbing
-   const timelineRef = useRef<HTMLDivElement>(null);
-   const [isDragging, setIsDragging] = useState(false);
- 
-   const effectiveTransitions = smoothTransitions && !prefersReducedMotion;
- 
-   // Calculate interval based on speed
-   const getIntervalMs = useCallback(() => {
-     const baseInterval = 800;
-     return baseInterval / playbackSpeed;
-   }, [playbackSpeed]);
+}: RiceFieldSimulationPanelProps) {
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const currentSeason = seasons[activeSeasonIndex];
+  const prefersReducedMotion = useReducedMotion();
+
+  // Enhanced state
+  const [smoothTransitions, setSmoothTransitions] = useState(true);
+  const [playbackSpeed, setPlaybackSpeed] = useState<PlaybackSpeed>(1);
+  const [isLooping, setIsLooping] = useState(true);
+  const [showMinimap, setShowMinimap] = useState(true);
+  const [enableTimeOfDay, setEnableTimeOfDay] = useState(true);
+
+  // Time of day cycling
+  const { currentTime, timeIndex, times, setTime, resetTime } = useTimeOfDay({
+    periodDuration: 2500,
+    autoAdvance: enableTimeOfDay,
+    isPaused: !isPlaying,
+    speed: playbackSpeed,
+  });
+
+  // Zoom and pan
+  const {
+    containerRef,
+    scale,
+    translateX,
+    translateY,
+    handleDoubleClick,
+    handleMouseDown,
+    handleMouseMove,
+    handleMouseUp,
+    resetZoom,
+    panTo,
+    isZoomed,
+  } = useZoomPan({ minScale: 1, maxScale: 3 });
+
+  // Timeline scrubbing
+  const timelineRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const effectiveTransitions = smoothTransitions && !prefersReducedMotion;
+
+  // Calculate interval based on speed
+  const getIntervalMs = useCallback(() => {
+    const baseInterval = 800;
+    return baseInterval / playbackSpeed;
+  }, [playbackSpeed]);
  
    useEffect(() => {
      if (isPlaying && seasons.length > 0) {
@@ -215,20 +240,34 @@
      <TooltipProvider>
        <Card className="panel h-full">
          <CardHeader className="panel-header flex flex-row items-center justify-between gap-4 flex-wrap">
-           <div className="flex items-center gap-3">
-             <h3 className="font-serif text-lg">Rice Field Simulation</h3>
-             <span
-               className={cn(
-                 "status-pill transition-all",
-                 effectiveTransitions && "duration-500",
-                 currentSeason?.rainfall === "low" && "status-pill-low",
-                 currentSeason?.rainfall === "normal" && "status-pill-normal",
-                 currentSeason?.rainfall === "high" && "status-pill-high"
-               )}
-             >
-               {currentSeason && getStatusText(currentSeason)}
-             </span>
-           </div>
+            <div className="flex items-center gap-3 flex-wrap">
+              <h3 className="font-serif text-lg">Rice Field Simulation</h3>
+              <span
+                className={cn(
+                  "status-pill transition-all",
+                  effectiveTransitions && "duration-500",
+                  currentSeason?.rainfall === "low" && "status-pill-low",
+                  currentSeason?.rainfall === "normal" && "status-pill-normal",
+                  currentSeason?.rainfall === "high" && "status-pill-high"
+                )}
+              >
+                {currentSeason && getStatusText(currentSeason)}
+              </span>
+              {/* Time of day indicator */}
+              {enableTimeOfDay && (
+                <span className={cn(
+                  "inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium transition-all",
+                  effectiveTransitions && "duration-500",
+                  currentTime === "sunrise" && "bg-orange-100 text-orange-700",
+                  currentTime === "noon" && "bg-amber-100 text-amber-700",
+                  currentTime === "sunset" && "bg-rose-100 text-rose-700",
+                  currentTime === "night" && "bg-indigo-100 text-indigo-700"
+                )}>
+                  <TimeIcon time={currentTime} />
+                  {timeOfDayConfig[currentTime].label}
+                </span>
+              )}
+            </div>
            <div className="flex items-center gap-2">
              {/* Playback controls */}
              <Tooltip>
@@ -331,15 +370,48 @@
                        aria-label="Toggle smooth transitions"
                      />
                    </div>
-                   <div className="flex items-center justify-between">
-                     <label className="text-sm font-medium">Show Minimap</label>
-                     <Switch
-                       checked={showMinimap}
-                       onCheckedChange={setShowMinimap}
-                       aria-label="Toggle minimap"
-                     />
-                   </div>
-                 </div>
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm font-medium">Show Minimap</label>
+                      <Switch
+                        checked={showMinimap}
+                        onCheckedChange={setShowMinimap}
+                        aria-label="Toggle minimap"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm font-medium">Day/Night Cycle</label>
+                      <Switch
+                        checked={enableTimeOfDay}
+                        onCheckedChange={setEnableTimeOfDay}
+                        aria-label="Toggle time of day cycle"
+                      />
+                    </div>
+                    {/* Time of day selector when enabled */}
+                    {enableTimeOfDay && (
+                      <div className="space-y-2 pt-2 border-t">
+                        <label className="text-sm font-medium text-muted-foreground">Current Time</label>
+                        <div className="flex gap-1">
+                          {times.map((time) => (
+                            <Tooltip key={time}>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant={currentTime === time ? "default" : "outline"}
+                                  size="sm"
+                                  onClick={() => setTime(time)}
+                                  className="flex-1 px-2"
+                                >
+                                  <TimeIcon time={time} />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>{timeOfDayConfig[time].label}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                </PopoverContent>
              </Popover>
            </div>
@@ -370,11 +442,12 @@
                  transform: `scale(${scale}) translate(${translateX / scale}px, ${translateY / scale}px)`,
                }}
              >
-               <RiceFieldVisual
-                 rainfall={currentSeason?.rainfall || "normal"}
-                 smoothTransitions={effectiveTransitions}
-                 isPaused={!isPlaying}
-               />
+                <RiceFieldVisual
+                  rainfall={currentSeason?.rainfall || "normal"}
+                  timeOfDay={enableTimeOfDay ? currentTime : "noon"}
+                  smoothTransitions={effectiveTransitions}
+                  isPaused={!isPlaying}
+                />
              </div>
  
              {/* Zoom controls */}
@@ -443,12 +516,13 @@
                  aria-label="Minimap navigation"
                >
                  <div className="w-full h-full relative">
-                   <RiceFieldVisual
-                     rainfall={currentSeason?.rainfall || "normal"}
-                     smoothTransitions={false}
-                     isPaused={true}
-                     isMinimized={true}
-                   />
+                    <RiceFieldVisual
+                      rainfall={currentSeason?.rainfall || "normal"}
+                      timeOfDay="noon"
+                      smoothTransitions={false}
+                      isPaused={true}
+                      isMinimized={true}
+                    />
                    {/* Viewport indicator */}
                    <div
                      className="absolute border-2 border-primary bg-primary/20 pointer-events-none"
@@ -571,214 +645,369 @@
    );
  }
  
- interface RiceFieldVisualProps {
-   rainfall: RainfallLevel;
-   smoothTransitions?: boolean;
-   isPaused?: boolean;
-   isMinimized?: boolean;
- }
+interface RiceFieldVisualProps {
+  rainfall: RainfallLevel;
+  timeOfDay?: TimeOfDay;
+  smoothTransitions?: boolean;
+  isPaused?: boolean;
+  isMinimized?: boolean;
+}
+
+function RiceFieldVisual({
+  rainfall,
+  timeOfDay = "noon",
+  smoothTransitions = true,
+  isPaused = false,
+  isMinimized = false,
+}: RiceFieldVisualProps) {
+  const transitionClass = smoothTransitions ? "transition-all duration-700 ease-in-out" : "";
+  const config = timeOfDayConfig[timeOfDay];
+
+  // Combine time of day and rainfall for sky gradient
+  const skyStyles = useMemo(() => {
+    // Base sky from time of day
+    let fromColor = config.skyGradient.from;
+    let toColor = config.skyGradient.to;
+    
+    // Modify based on rainfall
+    if (rainfall === "high") {
+      // Stormy overlay - darken the sky
+      if (timeOfDay === "night") {
+        fromColor = "hsl(230 50% 10%)";
+        toColor = "hsl(240 40% 20%)";
+      } else {
+        fromColor = "hsl(220 35% 40%)";
+        toColor = "hsl(210 30% 55%)";
+      }
+    } else if (rainfall === "low" && timeOfDay === "noon") {
+      // Extra bright for drought at noon
+      fromColor = "hsl(200 80% 75%)";
+      toColor = "hsl(45 75% 88%)";
+    }
+    
+    return {
+      background: `linear-gradient(180deg, ${fromColor} 0%, ${toColor} 100%)`,
+    };
+  }, [rainfall, timeOfDay, config]);
+
+  const waterLevel = rainfall === "low" ? 2 : rainfall === "normal" ? 12 : 24;
+  const plantDensity = isMinimized ? 6 : rainfall === "low" ? 10 : rainfall === "normal" ? 18 : 14;
+  const plantHealth = rainfall === "low" ? 0.6 : rainfall === "normal" ? 1 : 0.85;
+  
+  // Adjust ambient light based on time
+  const ambientFilter = `brightness(${config.ambientLight})`;
+  
+  // Sun/Moon visibility based on time and weather
+  const showSun = config.sunPosition.visible && rainfall !== "high";
+  const showMoon = config.moonVisible && rainfall !== "high";
+  const showStars = config.starOpacity > 0 && rainfall !== "high";
+
+  // Sun color changes by time
+  const sunColor = timeOfDay === "sunrise" ? "hsl(35 90% 55%)" : 
+                   timeOfDay === "sunset" ? "hsl(20 85% 50%)" : 
+                   "hsl(45 95% 60%)";
+
+  return (
+    <div
+      className={cn("relative w-full h-full overflow-hidden", transitionClass)}
+      style={{
+        ...skyStyles,
+        filter: ambientFilter,
+      }}
+    >
+      {/* Stars (for night) */}
+      {showStars && !isMinimized && (
+        <div 
+          className={cn("absolute inset-0 pointer-events-none", transitionClass)}
+          style={{ opacity: config.starOpacity }}
+        >
+          {Array.from({ length: 20 }).map((_, i) => (
+            <div
+              key={i}
+              className={cn(
+                "absolute rounded-full bg-white",
+                !isPaused && "animate-[twinkle_3s_ease-in-out_infinite]"
+              )}
+              style={{
+                width: Math.random() > 0.7 ? "3px" : "2px",
+                height: Math.random() > 0.7 ? "3px" : "2px",
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 40}%`,
+                animationDelay: `${Math.random() * 3}s`,
+              }}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Moon (for night) */}
+      {showMoon && (
+        <div
+          className={cn(
+            "absolute",
+            transitionClass,
+            !isPaused && "animate-[moon-glow_4s_ease-in-out_infinite]"
+          )}
+          style={{
+            top: isMinimized ? "8%" : "8%",
+            right: isMinimized ? "15%" : "20%",
+          }}
+        >
+          <div 
+            className={cn(
+              "rounded-full bg-gradient-to-br from-slate-100 to-slate-200",
+              isMinimized ? "w-4 h-4" : "w-10 h-10"
+            )}
+            style={{
+              boxShadow: "0 0 20px hsl(45 20% 90% / 0.5)",
+            }}
+          >
+            {/* Moon craters */}
+            {!isMinimized && (
+              <>
+                <div className="absolute top-2 left-2 w-2 h-2 rounded-full bg-slate-300/50" />
+                <div className="absolute top-4 right-3 w-1.5 h-1.5 rounded-full bg-slate-300/40" />
+                <div className="absolute bottom-2 left-4 w-1 h-1 rounded-full bg-slate-300/30" />
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Sun (position varies by time) */}
+      {showSun && (
+        <div
+          className={cn(
+            "absolute",
+            transitionClass,
+            !isPaused && "animate-sun-pulse"
+          )}
+          style={{
+            top: `${config.sunPosition.y}%`,
+            left: timeOfDay === "sunrise" ? `${config.sunPosition.x}%` : "auto",
+            right: timeOfDay !== "sunrise" ? `${100 - config.sunPosition.x}%` : "auto",
+            transform: "translate(-50%, -50%)",
+          }}
+        >
+          <div 
+            className={cn("rounded-full shadow-lg", isMinimized ? "w-4 h-4" : "w-12 h-12")} 
+            style={{ backgroundColor: sunColor }}
+          />
+          {/* Sun rays */}
+          {!isMinimized && (
+            <div className={cn("absolute inset-0", !isPaused && "animate-spin-slow")}>
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="absolute top-1/2 left-1/2 w-0.5 h-4 origin-bottom"
+                  style={{
+                    backgroundColor: `${sunColor}99`,
+                    transform: `translate(-50%, -100%) rotate(${i * 45}deg) translateY(-8px)`,
+                  }}
+                />
+              ))}
+            </div>
+          )}
+          {/* Sunrise/sunset glow */}
+          {(timeOfDay === "sunrise" || timeOfDay === "sunset") && !isMinimized && (
+            <div 
+              className={cn(
+                "absolute -inset-8 rounded-full pointer-events-none",
+                !isPaused && "animate-[sunrise-pulse_3s_ease-in-out_infinite]"
+              )}
+              style={{
+                background: `radial-gradient(circle, ${sunColor}40 0%, transparent 70%)`,
+              }}
+            />
+          )}
+        </div>
+      )}
+
+      {/* Clouds with smooth transition - tinted by time */}
+      <div
+        className={cn(
+          transitionClass,
+          rainfall === "low" && timeOfDay !== "night" ? "opacity-20" : 
+          rainfall === "low" && timeOfDay === "night" ? "opacity-0" : "opacity-100"
+        )}
+      >
+        <div className={cn("absolute top-4 left-8", !isPaused && "animate-cloud-drift")}>
+          <CloudShape
+            dark={rainfall === "high"}
+            tint={config.cloudTint}
+            size={isMinimized ? "small" : "medium"}
+            smoothTransitions={smoothTransitions}
+          />
+        </div>
+        <div
+          className={cn("absolute top-8 right-12", !isPaused && "animate-cloud-drift")}
+          style={{ animationDelay: "2s" }}
+        >
+          <CloudShape
+            dark={rainfall === "high"}
+            tint={config.cloudTint}
+            size="small"
+            smoothTransitions={smoothTransitions}
+          />
+        </div>
+        <div
+          className={cn(
+            "absolute top-2 left-1/3",
+            transitionClass,
+            rainfall === "high" ? "opacity-100" : "opacity-0",
+            !isPaused && "animate-cloud-drift"
+          )}
+          style={{ animationDelay: "4s" }}
+        >
+          <CloudShape 
+            dark 
+            tint={rainfall === "high" ? undefined : config.cloudTint}
+            size={isMinimized ? "medium" : "large"} 
+            smoothTransitions={smoothTransitions} 
+          />
+        </div>
+      </div>
+
+      {/* Rain drops */}
+      <RainDrops
+        active={rainfall === "high"}
+        smoothTransitions={smoothTransitions}
+        isPaused={isPaused}
+        isMinimized={isMinimized}
+      />
+
+      {/* Fireflies at night */}
+      {timeOfDay === "night" && !isMinimized && !isPaused && rainfall !== "high" && (
+        <div className="absolute inset-0 pointer-events-none">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div
+              key={i}
+              className="absolute w-1.5 h-1.5 rounded-full bg-yellow-300 animate-[firefly_4s_ease-in-out_infinite]"
+              style={{
+                left: `${20 + Math.random() * 60}%`,
+                top: `${40 + Math.random() * 40}%`,
+                animationDelay: `${i * 0.7}s`,
+                boxShadow: "0 0 6px hsl(60 80% 60% / 0.8)",
+              }}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Horizon line - tinted by time */}
+      <div 
+        className={cn("absolute bottom-1/3 w-full h-px", transitionClass)}
+        style={{ 
+          backgroundColor: timeOfDay === "night" ? "hsl(230 20% 15%)" : "hsl(25 40% 30% / 0.3)" 
+        }}
+      />
+
+      {/* Paddy field with smooth transitions */}
+      <div
+        className={cn(
+          "absolute bottom-0 left-0 right-0 h-1/3",
+          transitionClass
+        )}
+        style={{
+          background: timeOfDay === "night" 
+            ? `linear-gradient(180deg, hsl(230 25% 18%) 0%, hsl(230 20% 12%) 100%)`
+            : `linear-gradient(180deg, hsl(25 ${35 - (rainfall === "low" ? 10 : 0)}% ${(35 + (rainfall === "low" ? 5 : 0)) * config.ambientLight}%) 0%, hsl(20 30% ${25 * config.ambientLight}%) 100%)`,
+        }}
+      >
+        {/* Water with smooth level transition - tinted by time */}
+        <div
+          className={cn("absolute bottom-0 left-0 right-0", transitionClass)}
+          style={{ 
+            height: `${waterLevel}px`,
+            backgroundColor: `${config.waterTint}99`,
+          }}
+        >
+          {/* Water shimmer effect */}
+          {!isMinimized && !isPaused && rainfall !== "low" && (
+            <div 
+              className="absolute inset-0 animate-water-shimmer bg-gradient-to-r from-transparent via-white/20 to-transparent" 
+              style={{ opacity: timeOfDay === "night" ? 0.3 : 1 }}
+            />
+          )}
+        </div>
+
+        {/* Rice plants */}
+        <div className={cn("absolute bottom-1 left-0 right-0 flex justify-around items-end", isMinimized ? "px-1" : "px-4")}>
+          {Array.from({ length: plantDensity }).map((_, i) => (
+            <RicePlant
+              key={i}
+              height={isMinimized ? 8 : rainfall === "low" ? 20 : 35}
+              health={plantHealth}
+              delay={i * 0.1}
+              isPaused={isPaused}
+              smoothTransitions={smoothTransitions}
+              isMinimized={isMinimized}
+              timeOfDay={timeOfDay}
+            />
+          ))}
+        </div>
+
+        {/* Small hut with lighting */}
+        {!isMinimized && (
+          <div className="absolute bottom-6 right-8">
+            <Hut timeOfDay={timeOfDay} />
+          </div>
+        )}
+      </div>
+
+      {/* Cracked soil texture for drought */}
+      <div
+        className={cn(
+          "absolute bottom-0 left-0 right-0 h-1/3 pointer-events-none",
+          transitionClass,
+          rainfall === "low" ? "opacity-30" : "opacity-0"
+        )}
+      >
+        <svg className="w-full h-full" viewBox="0 0 100 50" preserveAspectRatio="none">
+          <path d="M10 0 L12 25 L8 50" stroke="hsl(25 30% 20%)" strokeWidth="0.5" fill="none" />
+          <path d="M30 0 L28 30 L35 50" stroke="hsl(25 30% 20%)" strokeWidth="0.5" fill="none" />
+          <path d="M50 5 L48 25 L55 45" stroke="hsl(25 30% 20%)" strokeWidth="0.5" fill="none" />
+          <path d="M70 0 L72 35 L68 50" stroke="hsl(25 30% 20%)" strokeWidth="0.5" fill="none" />
+          <path d="M90 10 L88 30 L92 50" stroke="hsl(25 30% 20%)" strokeWidth="0.5" fill="none" />
+        </svg>
+      </div>
+    </div>
+  );
+}
  
- function RiceFieldVisual({
-   rainfall,
-   smoothTransitions = true,
-   isPaused = false,
-   isMinimized = false,
- }: RiceFieldVisualProps) {
-   const transitionClass = smoothTransitions ? "transition-all duration-700 ease-in-out" : "";
- 
-   // Sky colors based on rainfall
-   const skyStyles = useMemo(() => {
-     switch (rainfall) {
-       case "low":
-         return {
-           background: "linear-gradient(180deg, hsl(200 80% 70%) 0%, hsl(45 70% 85%) 100%)",
-         };
-       case "normal":
-         return {
-           background: "linear-gradient(180deg, hsl(210 30% 75%) 0%, hsl(200 40% 82%) 100%)",
-         };
-       case "high":
-         return {
-           background: "linear-gradient(180deg, hsl(220 35% 40%) 0%, hsl(210 30% 55%) 100%)",
-         };
-     }
-   }, [rainfall]);
- 
-   const waterLevel = rainfall === "low" ? 2 : rainfall === "normal" ? 12 : 24;
-   const plantDensity = isMinimized ? 6 : rainfall === "low" ? 10 : rainfall === "normal" ? 18 : 14;
-   const plantHealth = rainfall === "low" ? 0.6 : rainfall === "normal" ? 1 : 0.85;
- 
-   return (
-     <div
-       className={cn("relative w-full h-full", transitionClass)}
-       style={skyStyles}
-     >
-       {/* Sun (for low rainfall) */}
-       <div
-         className={cn(
-           "absolute top-4 right-8",
-           transitionClass,
-           rainfall === "low" ? "opacity-100 scale-100" : "opacity-0 scale-50",
-           !isPaused && rainfall === "low" && "animate-sun-pulse"
-         )}
-       >
-         <div className={cn("rounded-full shadow-lg bg-sun-yellow", isMinimized ? "w-4 h-4" : "w-12 h-12")} />
-         {/* Sun rays */}
-         {!isMinimized && (
-           <div className="absolute inset-0 animate-spin-slow">
-             {Array.from({ length: 8 }).map((_, i) => (
-               <div
-                 key={i}
-                 className="absolute top-1/2 left-1/2 w-0.5 h-4 bg-sun-yellow/60 origin-bottom"
-                 style={{
-                   transform: `translate(-50%, -100%) rotate(${i * 45}deg) translateY(-8px)`,
-                 }}
-               />
-             ))}
-           </div>
-         )}
-       </div>
- 
-       {/* Clouds with smooth transition */}
-       <div
-         className={cn(
-           transitionClass,
-           rainfall === "low" ? "opacity-0" : "opacity-100"
-         )}
-       >
-         <div className={cn("absolute top-4 left-8", !isPaused && "animate-cloud-drift")}>
-           <CloudShape
-             dark={rainfall === "high"}
-             size={isMinimized ? "small" : "medium"}
-             smoothTransitions={smoothTransitions}
-           />
-         </div>
-         <div
-           className={cn("absolute top-8 right-12", !isPaused && "animate-cloud-drift")}
-           style={{ animationDelay: "2s" }}
-         >
-           <CloudShape
-             dark={rainfall === "high"}
-             size="small"
-             smoothTransitions={smoothTransitions}
-           />
-         </div>
-         <div
-           className={cn(
-             "absolute top-2 left-1/3",
-             transitionClass,
-             rainfall === "high" ? "opacity-100" : "opacity-0",
-             !isPaused && "animate-cloud-drift"
-           )}
-           style={{ animationDelay: "4s" }}
-         >
-           <CloudShape dark size={isMinimized ? "medium" : "large"} smoothTransitions={smoothTransitions} />
-         </div>
-       </div>
- 
-       {/* Rain drops */}
-       <RainDrops
-         active={rainfall === "high"}
-         smoothTransitions={smoothTransitions}
-         isPaused={isPaused}
-         isMinimized={isMinimized}
-       />
- 
-       {/* Horizon line */}
-       <div className="absolute bottom-1/3 w-full h-px bg-earth-brown/30" />
- 
-       {/* Paddy field with smooth transitions */}
-       <div
-         className={cn(
-           "absolute bottom-0 left-0 right-0 h-1/3",
-           transitionClass
-         )}
-         style={{
-           background: `linear-gradient(180deg, hsl(25 ${35 - (rainfall === "low" ? 10 : 0)}% ${35 + (rainfall === "low" ? 5 : 0)}%) 0%, hsl(20 30% 25%) 100%)`,
-         }}
-       >
-         {/* Water with smooth level transition */}
-         <div
-           className={cn("absolute bottom-0 left-0 right-0 bg-water-blue/60", transitionClass)}
-           style={{ height: `${waterLevel}px` }}
-         >
-           {/* Water shimmer effect */}
-           {!isMinimized && !isPaused && rainfall !== "low" && (
-             <div className="absolute inset-0 animate-water-shimmer bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-           )}
-         </div>
- 
-         {/* Rice plants */}
-         <div className={cn("absolute bottom-1 left-0 right-0 flex justify-around items-end", isMinimized ? "px-1" : "px-4")}>
-           {Array.from({ length: plantDensity }).map((_, i) => (
-             <RicePlant
-               key={i}
-               height={isMinimized ? 8 : rainfall === "low" ? 20 : 35}
-               health={plantHealth}
-               delay={i * 0.1}
-               isPaused={isPaused}
-               smoothTransitions={smoothTransitions}
-               isMinimized={isMinimized}
-             />
-           ))}
-         </div>
- 
-         {/* Small hut */}
-         {!isMinimized && (
-           <div className="absolute bottom-6 right-8">
-             <Hut />
-           </div>
-         )}
-       </div>
- 
-       {/* Cracked soil texture for drought */}
-       <div
-         className={cn(
-           "absolute bottom-0 left-0 right-0 h-1/3 pointer-events-none",
-           transitionClass,
-           rainfall === "low" ? "opacity-30" : "opacity-0"
-         )}
-       >
-         <svg className="w-full h-full" viewBox="0 0 100 50" preserveAspectRatio="none">
-           <path d="M10 0 L12 25 L8 50" stroke="hsl(25 30% 20%)" strokeWidth="0.5" fill="none" />
-           <path d="M30 0 L28 30 L35 50" stroke="hsl(25 30% 20%)" strokeWidth="0.5" fill="none" />
-           <path d="M50 5 L48 25 L55 45" stroke="hsl(25 30% 20%)" strokeWidth="0.5" fill="none" />
-           <path d="M70 0 L72 35 L68 50" stroke="hsl(25 30% 20%)" strokeWidth="0.5" fill="none" />
-           <path d="M90 10 L88 30 L92 50" stroke="hsl(25 30% 20%)" strokeWidth="0.5" fill="none" />
-         </svg>
-       </div>
-     </div>
-   );
- }
- 
- function CloudShape({
-   dark = false,
-   size = "medium",
-   smoothTransitions = true,
- }: {
-   dark?: boolean;
-   size?: "small" | "medium" | "large";
-   smoothTransitions?: boolean;
- }) {
-   const sizeClasses = {
-     small: "w-12 h-6",
-     medium: "w-16 h-8",
-     large: "w-24 h-12",
-   };
- 
-   return (
-     <div
-       className={cn(
-         "rounded-full",
-         sizeClasses[size],
-         smoothTransitions && "transition-colors duration-700"
-       )}
-       style={{
-         backgroundColor: dark ? "hsl(220 20% 35%)" : "hsla(0 0% 100% / 0.8)",
-       }}
-     />
-   );
- }
+function CloudShape({
+  dark = false,
+  tint,
+  size = "medium",
+  smoothTransitions = true,
+}: {
+  dark?: boolean;
+  tint?: string;
+  size?: "small" | "medium" | "large";
+  smoothTransitions?: boolean;
+}) {
+  const sizeClasses = {
+    small: "w-12 h-6",
+    medium: "w-16 h-8",
+    large: "w-24 h-12",
+  };
+
+  // Use tint if provided, otherwise default colors
+  const bgColor = tint || (dark ? "hsl(220 20% 35%)" : "hsla(0 0% 100% / 0.8)");
+
+  return (
+    <div
+      className={cn(
+        "rounded-full",
+        sizeClasses[size],
+        smoothTransitions && "transition-colors duration-700"
+      )}
+      style={{
+        backgroundColor: dark && !tint ? "hsl(220 20% 35%)" : bgColor,
+      }}
+    />
+  );
+}
  
  function RainDrops({
    active,
@@ -820,69 +1049,96 @@
    );
  }
  
- function RicePlant({
-   height,
-   health,
-   delay,
-   isPaused,
-   smoothTransitions,
-   isMinimized,
- }: {
-   height: number;
-   health: number;
-   delay: number;
-   isPaused: boolean;
-   smoothTransitions: boolean;
-   isMinimized: boolean;
- }) {
-   const stemColor = `hsl(95 ${45 * health}% ${35 + (1 - health) * 15}%)`;
-   const grainColor = `hsl(45 ${70 * health}% ${50 + (1 - health) * 10}%)`;
- 
-   return (
-     <div
-       className={cn(
-         "flex flex-col items-center origin-bottom",
-         !isPaused && "animate-sway",
-         smoothTransitions && "transition-all duration-500"
-       )}
-       style={{
-         animationDelay: `${delay}s`,
-         height: `${height}px`,
-       }}
-     >
-       <div
-         className={cn("flex-1", smoothTransitions && "transition-colors duration-500")}
-         style={{
-           width: isMinimized ? "1px" : "2px",
-           backgroundColor: stemColor,
-         }}
-       />
-       <div
-         className={cn(
-           "rounded-full -mt-1 transform rotate-12",
-           smoothTransitions && "transition-all duration-500"
-         )}
-         style={{
-           width: isMinimized ? "3px" : "8px",
-           height: isMinimized ? "4px" : "12px",
-           backgroundColor: grainColor,
-         }}
-       />
-     </div>
-   );
- }
- 
- function Hut() {
-   return (
-     <svg width="30" height="25" viewBox="0 0 30 25">
-       {/* Roof */}
-       <polygon points="15,0 0,12 30,12" fill="hsl(25 50% 35%)" />
-       {/* Walls */}
-       <rect x="5" y="12" width="20" height="13" fill="hsl(35 30% 50%)" />
-       {/* Door */}
-       <rect x="12" y="17" width="6" height="8" fill="hsl(25 40% 25%)" />
-     </svg>
-   );
- }
- 
- export default RiceFieldSimulationPanel;
+function RicePlant({
+  height,
+  health,
+  delay,
+  isPaused,
+  smoothTransitions,
+  isMinimized,
+  timeOfDay = "noon",
+}: {
+  height: number;
+  health: number;
+  delay: number;
+  isPaused: boolean;
+  smoothTransitions: boolean;
+  isMinimized: boolean;
+  timeOfDay?: TimeOfDay;
+}) {
+  const config = timeOfDayConfig[timeOfDay];
+  const lightMultiplier = config.ambientLight;
+  
+  // Adjust colors based on time of day
+  const baseStemLightness = 35 + (1 - health) * 15;
+  const adjustedStemLightness = baseStemLightness * lightMultiplier;
+  const stemColor = `hsl(95 ${45 * health}% ${Math.max(10, adjustedStemLightness)}%)`;
+  
+  const baseGrainLightness = 50 + (1 - health) * 10;
+  const adjustedGrainLightness = baseGrainLightness * lightMultiplier;
+  const grainColor = `hsl(45 ${70 * health}% ${Math.max(15, adjustedGrainLightness)}%)`;
+
+  return (
+    <div
+      className={cn(
+        "flex flex-col items-center origin-bottom",
+        !isPaused && "animate-sway",
+        smoothTransitions && "transition-all duration-500"
+      )}
+      style={{
+        animationDelay: `${delay}s`,
+        height: `${height}px`,
+      }}
+    >
+      <div
+        className={cn("flex-1", smoothTransitions && "transition-colors duration-500")}
+        style={{
+          width: isMinimized ? "1px" : "2px",
+          backgroundColor: stemColor,
+        }}
+      />
+      <div
+        className={cn(
+          "rounded-full -mt-1 transform rotate-12",
+          smoothTransitions && "transition-all duration-500"
+        )}
+        style={{
+          width: isMinimized ? "3px" : "8px",
+          height: isMinimized ? "4px" : "12px",
+          backgroundColor: grainColor,
+        }}
+      />
+    </div>
+  );
+}
+
+function Hut({ timeOfDay = "noon" }: { timeOfDay?: TimeOfDay }) {
+  const isNight = timeOfDay === "night";
+  const config = timeOfDayConfig[timeOfDay];
+  
+  // Adjust hut colors based on ambient light
+  const roofLightness = 35 * config.ambientLight;
+  const wallLightness = 50 * config.ambientLight;
+  const doorLightness = 25 * config.ambientLight;
+  
+  return (
+    <svg width="30" height="25" viewBox="0 0 30 25">
+      {/* Roof */}
+      <polygon points="15,0 0,12 30,12" fill={`hsl(25 50% ${Math.max(15, roofLightness)}%)`} />
+      {/* Walls */}
+      <rect x="5" y="12" width="20" height="13" fill={`hsl(35 30% ${Math.max(20, wallLightness)}%)`} />
+      {/* Door */}
+      <rect x="12" y="17" width="6" height="8" fill={`hsl(25 40% ${Math.max(10, doorLightness)}%)`} />
+      {/* Window light at night */}
+      {isNight && (
+        <>
+          <rect x="7" y="15" width="4" height="4" fill="hsl(45 80% 70%)" opacity="0.9" />
+          {/* Window glow */}
+          <rect x="6" y="14" width="6" height="6" fill="hsl(45 80% 70%)" opacity="0.3" />
+        </>
+      )}
+    </svg>
+  );
+}
+
+export default RiceFieldSimulationPanel;
