@@ -240,56 +240,13 @@
  }
  
  @keyframes spin-slow {
-    from {
-      transform: rotate(0deg);
-    }
-    to {
-      transform: rotate(360deg);
-    }
-  }
-
-  @keyframes twinkle {
-    0%, 100% {
-      opacity: 0.3;
-      transform: scale(1);
-    }
-    50% {
-      opacity: 1;
-      transform: scale(1.2);
-    }
-  }
-
-  @keyframes moon-glow {
-    0%, 100% {
-      filter: drop-shadow(0 0 8px hsl(45 20% 90% / 0.5));
-    }
-    50% {
-      filter: drop-shadow(0 0 15px hsl(45 30% 95% / 0.7));
-    }
-  }
-
-  @keyframes sunrise-pulse {
-    0%, 100% {
-      opacity: 0.6;
-    }
-    50% {
-      opacity: 0.9;
-    }
-  }
-
-  @keyframes firefly {
-    0%, 100% {
-      opacity: 0;
-      transform: translateY(0);
-    }
-    10%, 90% {
-      opacity: 0;
-    }
-    50% {
-      opacity: 0.8;
-      transform: translateY(-5px);
-    }
-  }
+   from {
+     transform: rotate(0deg);
+   }
+   to {
+     transform: rotate(360deg);
+   }
+ }
  
  /* Reduced motion support */
  @media (prefers-reduced-motion: reduce) {
@@ -299,11 +256,7 @@
    .animate-sun-pulse,
    .animate-cloud-drift,
    .animate-water-shimmer,
-   .animate-spin-slow,
-   .animate-twinkle,
-   .animate-moon-glow,
-   .animate-sunrise-pulse,
-   .animate-firefly {
+   .animate-spin-slow {
      animation: none !important;
    }
    
