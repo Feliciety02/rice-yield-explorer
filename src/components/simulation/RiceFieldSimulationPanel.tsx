@@ -1,19 +1,21 @@
- import { useEffect, useRef, useState, useCallback, useMemo } from "react";
- import {
-   Play,
-   Pause,
-   SkipForward,
-   RotateCcw,
-   Sun,
-   Cloud,
-   CloudRain,
-   ZoomIn,
-   ZoomOut,
-   Maximize2,
-   Repeat,
-   Settings2,
- } from "lucide-react";
- import { Button } from "@/components/ui/button";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import {
+  Play,
+  Pause,
+  SkipForward,
+  RotateCcw,
+  Sun,
+  Cloud,
+  CloudRain,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+  Minimize2,
+  Repeat,
+  Settings2,
+  X,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
  import { Card, CardContent, CardHeader } from "@/components/ui/card";
  import { Switch } from "@/components/ui/switch";
  import { Slider } from "@/components/ui/slider";
@@ -78,11 +80,13 @@
    const currentSeason = seasons[activeSeasonIndex];
    const prefersReducedMotion = useReducedMotion();
  
-   // Enhanced state
-   const [smoothTransitions, setSmoothTransitions] = useState(true);
-   const [playbackSpeed, setPlaybackSpeed] = useState<PlaybackSpeed>(1);
-   const [isLooping, setIsLooping] = useState(true);
-   const [showMinimap, setShowMinimap] = useState(true);
+  // Enhanced state
+  const [smoothTransitions, setSmoothTransitions] = useState(true);
+  const [playbackSpeed, setPlaybackSpeed] = useState<PlaybackSpeed>(1);
+  const [isLooping, setIsLooping] = useState(true);
+  const [showMinimap, setShowMinimap] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const fullscreenRef = useRef<HTMLDivElement>(null);
  
    // Zoom and pan
    const {
@@ -151,32 +155,59 @@
      setIsDragging(false);
    }, []);
  
-   // Keyboard shortcuts
-   useEffect(() => {
-     const handleKeyDown = (e: KeyboardEvent) => {
-       if (e.target instanceof HTMLInputElement) return;
-       switch (e.key) {
-         case " ":
-           e.preventDefault();
-           onPlayPause();
-           break;
-         case "ArrowRight":
-           onStep();
-           break;
-         case "ArrowLeft":
-           onSelectSeason(Math.max(0, activeSeasonIndex - 1));
-           break;
-         case "r":
-           onReset();
-           break;
-         case "0":
-           resetZoom();
-           break;
-       }
-     };
-     window.addEventListener("keydown", handleKeyDown);
-     return () => window.removeEventListener("keydown", handleKeyDown);
-   }, [onPlayPause, onStep, onReset, resetZoom, activeSeasonIndex, onSelectSeason]);
+    // Fullscreen toggle
+    const toggleFullscreen = useCallback(() => {
+      setIsFullscreen(prev => !prev);
+    }, []);
+
+    // Keyboard shortcuts
+    useEffect(() => {
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.target instanceof HTMLInputElement) return;
+        
+        // Escape exits fullscreen
+        if (e.key === "Escape" && isFullscreen) {
+          setIsFullscreen(false);
+          return;
+        }
+        
+        switch (e.key) {
+          case " ":
+            e.preventDefault();
+            onPlayPause();
+            break;
+          case "ArrowRight":
+            onStep();
+            break;
+          case "ArrowLeft":
+            onSelectSeason(Math.max(0, activeSeasonIndex - 1));
+            break;
+          case "r":
+            onReset();
+            break;
+          case "0":
+            resetZoom();
+            break;
+          case "f":
+            toggleFullscreen();
+            break;
+        }
+      };
+      window.addEventListener("keydown", handleKeyDown);
+      return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [onPlayPause, onStep, onReset, resetZoom, activeSeasonIndex, onSelectSeason, isFullscreen, toggleFullscreen]);
+
+    // Prevent body scroll when fullscreen
+    useEffect(() => {
+      if (isFullscreen) {
+        document.body.style.overflow = "hidden";
+      } else {
+        document.body.style.overflow = "";
+      }
+      return () => {
+        document.body.style.overflow = "";
+      };
+    }, [isFullscreen]);
  
    // Minimap click handler
    const handleMinimapClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
@@ -211,10 +242,424 @@
    const viewportX = 50 - (translateX / (containerRef.current?.offsetWidth || 1)) * 50 / (scale - 1 || 1);
    const viewportY = 50 - (translateY / (containerRef.current?.offsetHeight || 1)) * 50 / (scale - 1 || 1);
  
-   return (
-     <TooltipProvider>
-       <Card className="panel h-full">
-         <CardHeader className="panel-header flex flex-row items-center justify-between gap-4 flex-wrap">
+    // Fullscreen overlay content
+    const simulationContent = (
+      <>
+        {/* Simulation Stage with Zoom/Pan */}
+        <div
+          ref={containerRef}
+          className={cn(
+            "relative rounded-lg overflow-hidden border border-border select-none",
+            isFullscreen ? "flex-1 w-full" : "aspect-video",
+            isZoomed && "cursor-grab active:cursor-grabbing"
+          )}
+          onDoubleClick={handleDoubleClick}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+          role="img"
+          aria-label={`Rice field visualization showing ${currentSeason?.rainfall} rainfall conditions with ${currentSeason?.yield} tons per hectare yield. Season ${activeSeasonIndex + 1} of ${seasons.length}. ${isZoomed ? `Zoomed to ${scale.toFixed(1)}x` : "Double-click to zoom"}${isFullscreen ? ". Press Escape or F to exit fullscreen" : ""}`}
+        >
+          <div
+            className={cn(
+              "w-full h-full origin-center",
+              effectiveTransitions && "transition-transform duration-300"
+            )}
+            style={{
+              transform: `scale(${scale}) translate(${translateX / scale}px, ${translateY / scale}px)`,
+            }}
+          >
+            <RiceFieldVisual
+              rainfall={currentSeason?.rainfall || "normal"}
+              smoothTransitions={effectiveTransitions}
+              isPaused={!isPlaying}
+            />
+          </div>
+
+          {/* Zoom controls */}
+          <div className="absolute top-2 right-2 flex flex-col gap-1 z-10">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="secondary"
+                  size="icon"
+                  className="h-8 w-8 bg-background/80 backdrop-blur-sm"
+                  onClick={() => {
+                    if (scale < 3) {
+                      const event = new WheelEvent("wheel", { deltaY: -100 });
+                      containerRef.current?.dispatchEvent(event);
+                    }
+                  }}
+                  aria-label="Zoom in"
+                >
+                  <ZoomIn className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="left">Zoom in</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="secondary"
+                  size="icon"
+                  className="h-8 w-8 bg-background/80 backdrop-blur-sm"
+                  onClick={() => {
+                    if (scale > 1) {
+                      const event = new WheelEvent("wheel", { deltaY: 100 });
+                      containerRef.current?.dispatchEvent(event);
+                    }
+                  }}
+                  aria-label="Zoom out"
+                >
+                  <ZoomOut className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="left">Zoom out</TooltipContent>
+            </Tooltip>
+            {isZoomed && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    className="h-8 w-8 bg-background/80 backdrop-blur-sm"
+                    onClick={resetZoom}
+                    aria-label="Reset zoom (0)"
+                  >
+                    <Maximize2 className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="left">Reset zoom (0)</TooltipContent>
+              </Tooltip>
+            )}
+          </div>
+
+          {/* Fullscreen toggle button on visualization */}
+          <div className="absolute top-2 left-2 z-10">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="secondary"
+                  size="icon"
+                  className="h-8 w-8 bg-background/80 backdrop-blur-sm"
+                  onClick={toggleFullscreen}
+                  aria-label={isFullscreen ? "Exit fullscreen (Esc)" : "Enter fullscreen (F)"}
+                >
+                  {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                {isFullscreen ? "Exit fullscreen (Esc)" : "Fullscreen (F)"}
+              </TooltipContent>
+            </Tooltip>
+          </div>
+
+          {/* Minimap */}
+          {isZoomed && showMinimap && (
+            <div
+              className="absolute bottom-2 left-2 w-24 h-16 bg-background/90 backdrop-blur-sm rounded border border-border overflow-hidden cursor-pointer z-10"
+              onClick={handleMinimapClick}
+              aria-label="Minimap navigation"
+            >
+              <div className="w-full h-full relative">
+                <RiceFieldVisual
+                  rainfall={currentSeason?.rainfall || "normal"}
+                  smoothTransitions={false}
+                  isPaused={true}
+                  isMinimized={true}
+                />
+                {/* Viewport indicator */}
+                <div
+                  className="absolute border-2 border-primary bg-primary/20 pointer-events-none"
+                  style={{
+                    width: `${viewportPercent}%`,
+                    height: `${viewportPercent}%`,
+                    left: `${Math.max(0, Math.min(100 - viewportPercent, viewportX - viewportPercent / 2))}%`,
+                    top: `${Math.max(0, Math.min(100 - viewportPercent, viewportY - viewportPercent / 2))}%`,
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Zoom level indicator */}
+          {isZoomed && (
+            <div className="absolute bottom-2 right-2 px-2 py-1 bg-background/80 backdrop-blur-sm rounded text-xs font-medium z-10">
+              {scale.toFixed(1)}x
+            </div>
+          )}
+        </div>
+
+        {/* Enhanced Timeline Scrubber */}
+        <div className={cn("space-y-3", isFullscreen && "px-6 pb-4")}>
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              Season {activeSeasonIndex + 1} of {seasons.length}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Speed: {playbackSpeed}x • {isLooping ? "Looping" : "Once"}
+            </p>
+          </div>
+
+          {/* Continuous timeline bar */}
+          <div
+            ref={timelineRef}
+            className="relative h-8 bg-muted rounded-full cursor-pointer group"
+            onMouseDown={handleTimelineMouseDown}
+            onMouseMove={handleTimelineMouseMove}
+            onMouseUp={handleTimelineMouseUp}
+            onMouseLeave={handleTimelineMouseUp}
+            role="slider"
+            aria-label="Season timeline"
+            aria-valuemin={1}
+            aria-valuemax={seasons.length}
+            aria-valuenow={activeSeasonIndex + 1}
+            tabIndex={0}
+          >
+            {/* Progress fill */}
+            <div
+              className={cn(
+                "absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-primary/60 to-primary",
+                effectiveTransitions && "transition-all duration-300"
+              )}
+              style={{ width: `${((activeSeasonIndex + 1) / seasons.length) * 100}%` }}
+            />
+
+            {/* Season markers */}
+            {seasons.map((season, idx) => (
+              <Tooltip key={idx}>
+                <TooltipTrigger asChild>
+                  <div
+                    className={cn(
+                      "absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3 rounded-full border-2 cursor-pointer transition-all duration-200",
+                      idx === activeSeasonIndex
+                        ? "w-5 h-5 border-primary bg-background ring-2 ring-primary ring-offset-2"
+                        : idx < activeSeasonIndex
+                        ? "border-primary-foreground bg-primary"
+                        : "border-muted-foreground bg-background",
+                      season.rainfall === "low" && idx > activeSeasonIndex && "border-amber-400",
+                      season.rainfall === "normal" && idx > activeSeasonIndex && "border-primary",
+                      season.rainfall === "high" && idx > activeSeasonIndex && "border-blue-400"
+                    )}
+                    style={{ left: `${((idx + 0.5) / seasons.length) * 100}%` }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSelectSeason(idx);
+                    }}
+                  />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="font-medium">Season {idx + 1}</p>
+                  <p className="text-xs text-muted-foreground capitalize">
+                    {season.rainfall} rainfall • {season.yield.toFixed(1)} t/ha
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            ))}
+          </div>
+
+          {/* Icon timeline (compact) */}
+          <div
+            className="flex gap-1 flex-wrap justify-center"
+            role="tablist"
+            aria-label="Season icons"
+          >
+            {seasons.map((season, idx) => (
+              <button
+                key={idx}
+                onClick={() => onSelectSeason(idx)}
+                role="tab"
+                aria-selected={idx === activeSeasonIndex}
+                aria-label={`Season ${idx + 1}: ${season.rainfall} rainfall, ${season.yield} tons per hectare`}
+                className={cn(
+                  "w-6 h-6 rounded-full flex items-center justify-center cursor-pointer border-2 transition-all duration-200",
+                  idx === activeSeasonIndex && "ring-2 ring-primary ring-offset-1 scale-110",
+                  season.rainfall === "low" && "bg-sun-yellow/20 border-amber-400",
+                  season.rainfall === "normal" && "bg-primary/10 border-primary",
+                  season.rainfall === "high" && "bg-rain-blue/20 border-blue-400"
+                )}
+              >
+                <RainfallIcon level={season.rainfall} />
+              </button>
+            ))}
+          </div>
+        </div>
+      </>
+    );
+
+    return (
+      <TooltipProvider>
+        {/* Fullscreen overlay */}
+        {isFullscreen && (
+          <div
+            ref={fullscreenRef}
+            className="fixed inset-0 z-50 bg-background flex flex-col"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Rice Field Simulation Fullscreen View"
+          >
+            {/* Fullscreen header */}
+            <div className="flex items-center justify-between p-4 border-b border-border bg-background/95 backdrop-blur-sm">
+              <div className="flex items-center gap-3">
+                <h3 className="font-serif text-xl font-semibold">Rice Field Simulation</h3>
+                <span
+                  className={cn(
+                    "status-pill transition-all",
+                    effectiveTransitions && "duration-500",
+                    currentSeason?.rainfall === "low" && "status-pill-low",
+                    currentSeason?.rainfall === "normal" && "status-pill-normal",
+                    currentSeason?.rainfall === "high" && "status-pill-high"
+                  )}
+                >
+                  {currentSeason && getStatusText(currentSeason)}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                {/* Playback controls */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={onPlayPause}
+                      aria-label={isPlaying ? "Pause (Space)" : "Play (Space)"}
+                    >
+                      {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{isPlaying ? "Pause" : "Play"} (Space)</p>
+                  </TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={onStep}
+                      aria-label="Next season (→)"
+                    >
+                      <SkipForward className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Next season (→)</p>
+                  </TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={onReset}
+                      aria-label="Reset (R)"
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Reset (R)</p>
+                  </TooltipContent>
+                </Tooltip>
+
+                <div className="w-px h-6 bg-border mx-1" />
+
+                {/* Loop toggle */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant={isLooping ? "default" : "outline"}
+                      size="icon"
+                      onClick={() => setIsLooping(!isLooping)}
+                      aria-label={isLooping ? "Loop enabled" : "Loop disabled"}
+                    >
+                      <Repeat className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{isLooping ? "Loop on" : "Loop off"}</p>
+                  </TooltipContent>
+                </Tooltip>
+
+                {/* Settings popover */}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="icon" aria-label="Settings">
+                      <Settings2 className="w-4 h-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64" align="end">
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Playback Speed</label>
+                        <div className="flex gap-2">
+                          {([0.5, 1, 2] as PlaybackSpeed[]).map((speed) => (
+                            <Button
+                              key={speed}
+                              variant={playbackSpeed === speed ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => setPlaybackSpeed(speed)}
+                              className="flex-1"
+                            >
+                              {speed}x
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <label className="text-sm font-medium">Smooth Transitions</label>
+                        <Switch
+                          checked={smoothTransitions}
+                          onCheckedChange={setSmoothTransitions}
+                          aria-label="Toggle smooth transitions"
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <label className="text-sm font-medium">Show Minimap</label>
+                        <Switch
+                          checked={showMinimap}
+                          onCheckedChange={setShowMinimap}
+                          aria-label="Toggle minimap"
+                        />
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+
+                <div className="w-px h-6 bg-border mx-1" />
+
+                {/* Exit fullscreen button */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={toggleFullscreen}
+                      aria-label="Exit fullscreen (Esc)"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Exit fullscreen (Esc)</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+            </div>
+
+            {/* Fullscreen content */}
+            <div className="flex-1 flex flex-col p-4 gap-4 overflow-hidden">
+              {simulationContent}
+            </div>
+          </div>
+        )}
+
+        {/* Regular card view */}
+        <Card className="panel h-full">
+          <CardHeader className="panel-header flex flex-row items-center justify-between gap-4 flex-wrap">
            <div className="flex items-center gap-3">
              <h3 className="font-serif text-lg">Rice Field Simulation</h3>
              <span
@@ -340,235 +785,34 @@
                      />
                    </div>
                  </div>
-               </PopoverContent>
-             </Popover>
-           </div>
+              </PopoverContent>
+            </Popover>
+
+            {/* Fullscreen button */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={toggleFullscreen}
+                  aria-label="Enter fullscreen (F)"
+                >
+                  <Maximize2 className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Fullscreen (F)</p>
+              </TooltipContent>
+            </Tooltip>
+            </div>
          </CardHeader>
  
-         <CardContent className="p-4 space-y-4">
-           {/* Simulation Stage with Zoom/Pan */}
-           <div
-             ref={containerRef}
-             className={cn(
-               "relative aspect-video rounded-lg overflow-hidden border border-border select-none",
-               isZoomed && "cursor-grab active:cursor-grabbing"
-             )}
-             onDoubleClick={handleDoubleClick}
-             onMouseDown={handleMouseDown}
-             onMouseMove={handleMouseMove}
-             onMouseUp={handleMouseUp}
-             onMouseLeave={handleMouseUp}
-             role="img"
-             aria-label={`Rice field visualization showing ${currentSeason?.rainfall} rainfall conditions with ${currentSeason?.yield} tons per hectare yield. Season ${activeSeasonIndex + 1} of ${seasons.length}. ${isZoomed ? `Zoomed to ${scale.toFixed(1)}x` : "Double-click to zoom"}`}
-           >
-             <div
-               className={cn(
-                 "w-full h-full origin-center",
-                 effectiveTransitions && "transition-transform duration-300"
-               )}
-               style={{
-                 transform: `scale(${scale}) translate(${translateX / scale}px, ${translateY / scale}px)`,
-               }}
-             >
-               <RiceFieldVisual
-                 rainfall={currentSeason?.rainfall || "normal"}
-                 smoothTransitions={effectiveTransitions}
-                 isPaused={!isPlaying}
-               />
-             </div>
- 
-             {/* Zoom controls */}
-             <div className="absolute top-2 right-2 flex flex-col gap-1 z-10">
-               <Tooltip>
-                 <TooltipTrigger asChild>
-                   <Button
-                     variant="secondary"
-                     size="icon"
-                     className="h-8 w-8 bg-background/80 backdrop-blur-sm"
-                     onClick={() => {
-                       if (scale < 3) {
-                         const event = new WheelEvent("wheel", { deltaY: -100 });
-                         containerRef.current?.dispatchEvent(event);
-                       }
-                     }}
-                     aria-label="Zoom in"
-                   >
-                     <ZoomIn className="w-4 h-4" />
-                   </Button>
-                 </TooltipTrigger>
-                 <TooltipContent side="left">Zoom in</TooltipContent>
-               </Tooltip>
-               <Tooltip>
-                 <TooltipTrigger asChild>
-                   <Button
-                     variant="secondary"
-                     size="icon"
-                     className="h-8 w-8 bg-background/80 backdrop-blur-sm"
-                     onClick={() => {
-                       if (scale > 1) {
-                         const event = new WheelEvent("wheel", { deltaY: 100 });
-                         containerRef.current?.dispatchEvent(event);
-                       }
-                     }}
-                     aria-label="Zoom out"
-                   >
-                     <ZoomOut className="w-4 h-4" />
-                   </Button>
-                 </TooltipTrigger>
-                 <TooltipContent side="left">Zoom out</TooltipContent>
-               </Tooltip>
-               {isZoomed && (
-                 <Tooltip>
-                   <TooltipTrigger asChild>
-                     <Button
-                       variant="secondary"
-                       size="icon"
-                       className="h-8 w-8 bg-background/80 backdrop-blur-sm"
-                       onClick={resetZoom}
-                       aria-label="Reset zoom (0)"
-                     >
-                       <Maximize2 className="w-4 h-4" />
-                     </Button>
-                   </TooltipTrigger>
-                   <TooltipContent side="left">Reset zoom (0)</TooltipContent>
-                 </Tooltip>
-               )}
-             </div>
- 
-             {/* Minimap */}
-             {isZoomed && showMinimap && (
-               <div
-                 className="absolute bottom-2 left-2 w-24 h-16 bg-background/90 backdrop-blur-sm rounded border border-border overflow-hidden cursor-pointer z-10"
-                 onClick={handleMinimapClick}
-                 aria-label="Minimap navigation"
-               >
-                 <div className="w-full h-full relative">
-                   <RiceFieldVisual
-                     rainfall={currentSeason?.rainfall || "normal"}
-                     smoothTransitions={false}
-                     isPaused={true}
-                     isMinimized={true}
-                   />
-                   {/* Viewport indicator */}
-                   <div
-                     className="absolute border-2 border-primary bg-primary/20 pointer-events-none"
-                     style={{
-                       width: `${viewportPercent}%`,
-                       height: `${viewportPercent}%`,
-                       left: `${Math.max(0, Math.min(100 - viewportPercent, viewportX - viewportPercent / 2))}%`,
-                       top: `${Math.max(0, Math.min(100 - viewportPercent, viewportY - viewportPercent / 2))}%`,
-                     }}
-                   />
-                 </div>
-               </div>
-             )}
- 
-             {/* Zoom level indicator */}
-             {isZoomed && (
-               <div className="absolute bottom-2 right-2 px-2 py-1 bg-background/80 backdrop-blur-sm rounded text-xs font-medium z-10">
-                 {scale.toFixed(1)}x
-               </div>
-             )}
-           </div>
- 
-           {/* Enhanced Timeline Scrubber */}
-           <div className="space-y-3">
-             <div className="flex items-center justify-between">
-               <p className="text-sm text-muted-foreground">
-                 Season {activeSeasonIndex + 1} of {seasons.length}
-               </p>
-               <p className="text-xs text-muted-foreground">
-                 Speed: {playbackSpeed}x • {isLooping ? "Looping" : "Once"}
-               </p>
-             </div>
- 
-             {/* Continuous timeline bar */}
-             <div
-               ref={timelineRef}
-               className="relative h-8 bg-muted rounded-full cursor-pointer group"
-               onMouseDown={handleTimelineMouseDown}
-               onMouseMove={handleTimelineMouseMove}
-               onMouseUp={handleTimelineMouseUp}
-               onMouseLeave={handleTimelineMouseUp}
-               role="slider"
-               aria-label="Season timeline"
-               aria-valuemin={1}
-               aria-valuemax={seasons.length}
-               aria-valuenow={activeSeasonIndex + 1}
-               tabIndex={0}
-             >
-               {/* Progress fill */}
-               <div
-                 className={cn(
-                   "absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-primary/60 to-primary",
-                   effectiveTransitions && "transition-all duration-300"
-                 )}
-                 style={{ width: `${((activeSeasonIndex + 1) / seasons.length) * 100}%` }}
-               />
- 
-               {/* Season markers */}
-               {seasons.map((season, idx) => (
-                 <Tooltip key={idx}>
-                   <TooltipTrigger asChild>
-                     <div
-                       className={cn(
-                         "absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3 rounded-full border-2 cursor-pointer transition-all duration-200",
-                         idx === activeSeasonIndex
-                           ? "w-5 h-5 border-primary bg-background ring-2 ring-primary ring-offset-2"
-                           : idx < activeSeasonIndex
-                           ? "border-primary-foreground bg-primary"
-                           : "border-muted-foreground bg-background",
-                         season.rainfall === "low" && idx > activeSeasonIndex && "border-amber-400",
-                         season.rainfall === "normal" && idx > activeSeasonIndex && "border-primary",
-                         season.rainfall === "high" && idx > activeSeasonIndex && "border-blue-400"
-                       )}
-                       style={{ left: `${((idx + 0.5) / seasons.length) * 100}%` }}
-                       onClick={(e) => {
-                         e.stopPropagation();
-                         onSelectSeason(idx);
-                       }}
-                     />
-                   </TooltipTrigger>
-                   <TooltipContent>
-                     <p className="font-medium">Season {idx + 1}</p>
-                     <p className="text-xs text-muted-foreground capitalize">
-                       {season.rainfall} rainfall • {season.yield.toFixed(1)} t/ha
-                     </p>
-                   </TooltipContent>
-                 </Tooltip>
-               ))}
-             </div>
- 
-             {/* Icon timeline (compact) */}
-             <div
-               className="flex gap-1 flex-wrap justify-center"
-               role="tablist"
-               aria-label="Season icons"
-             >
-               {seasons.map((season, idx) => (
-                 <button
-                   key={idx}
-                   onClick={() => onSelectSeason(idx)}
-                   role="tab"
-                   aria-selected={idx === activeSeasonIndex}
-                   aria-label={`Season ${idx + 1}: ${season.rainfall} rainfall, ${season.yield} tons per hectare`}
-                   className={cn(
-                     "w-6 h-6 rounded-full flex items-center justify-center cursor-pointer border-2 transition-all duration-200",
-                     idx === activeSeasonIndex && "ring-2 ring-primary ring-offset-1 scale-110",
-                     season.rainfall === "low" && "bg-sun-yellow/20 border-amber-400",
-                     season.rainfall === "normal" && "bg-primary/10 border-primary",
-                     season.rainfall === "high" && "bg-rain-blue/20 border-blue-400"
-                   )}
-                 >
-                   <RainfallIcon level={season.rainfall} />
-                 </button>
-               ))}
-             </div>
-           </div>
-         </CardContent>
-       </Card>
-     </TooltipProvider>
-   );
+          <CardContent className="p-4 space-y-4">
+            {simulationContent}
+          </CardContent>
+        </Card>
+      </TooltipProvider>
+    );
  }
  
  interface RiceFieldVisualProps {
