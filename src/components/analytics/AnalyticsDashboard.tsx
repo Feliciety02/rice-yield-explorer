@@ -8,6 +8,7 @@ import { CumulativeProbabilityChart } from "./CumulativeProbabilityChart";
 import { StatisticalSummary } from "./StatisticalSummary";
 import { RainfallImpactChart } from "./RainfallImpactChart";
 import { SeasonalTrendChart } from "./SeasonalTrendChart";
+import { MonteCarloAnalysis } from "./MonteCarloAnalysis";
 import {
   Download,
   FileJson,
@@ -17,6 +18,7 @@ import {
   PieChart,
   Activity,
   Printer,
+  Target,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -150,6 +152,10 @@ export function AnalyticsDashboard({ results, aggregatedResults }: AnalyticsDash
                 <PieChart className="w-3.5 h-3.5 mr-1.5" />
                 Distribution
               </TabsTrigger>
+              <TabsTrigger value="montecarlo" className="text-xs">
+                <Target className="w-3.5 h-3.5 mr-1.5" />
+                Monte Carlo
+              </TabsTrigger>
               <TabsTrigger value="trends" className="text-xs">
                 <TrendingUp className="w-3.5 h-3.5 mr-1.5" />
                 Trends
@@ -197,6 +203,10 @@ export function AnalyticsDashboard({ results, aggregatedResults }: AnalyticsDash
             <TabsContent value="distribution" className="mt-0 space-y-6">
               <YieldDistributionChart results={results} />
               <CumulativeProbabilityChart results={results} />
+            </TabsContent>
+
+            <TabsContent value="montecarlo" className="mt-0">
+              <MonteCarloAnalysis results={results} />
             </TabsContent>
 
             <TabsContent value="trends" className="mt-0 space-y-6">
