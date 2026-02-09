@@ -2,13 +2,14 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { SimulationRun, SCENARIOS } from "@/types/simulation";
+import { SimulationRun, SimulationConfig, SavedSimulation, SCENARIOS } from "@/types/simulation";
 import { YieldDistributionChart } from "./YieldDistributionChart";
 import { CumulativeProbabilityChart } from "./CumulativeProbabilityChart";
 import { StatisticalSummary } from "./StatisticalSummary";
 import { RainfallImpactChart } from "./RainfallImpactChart";
 import { SeasonalTrendChart } from "./SeasonalTrendChart";
 import { MonteCarloAnalysis } from "./MonteCarloAnalysis";
+import { HistoricalComparison } from "./HistoricalComparison";
 import {
   Download,
   FileJson,
@@ -19,6 +20,7 @@ import {
   Activity,
   Printer,
   Target,
+  History,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -29,6 +31,7 @@ import {
 
 interface AnalyticsDashboardProps {
   results: SimulationRun[];
+  config: SimulationConfig;
   aggregatedResults: {
     averageYield: number;
     minYield: number;
@@ -36,9 +39,30 @@ interface AnalyticsDashboardProps {
     yieldVariability: "low" | "medium" | "high";
     lowYieldPercent: number;
   } | null;
+  // History props
+  savedSimulations: SavedSimulation[];
+  selectedForComparison: string[];
+  onSaveSimulation: (name: string) => void;
+  onDeleteSimulation: (id: string) => void;
+  onRenameSimulation: (id: string, newName: string) => void;
+  onToggleComparison: (id: string) => void;
+  onClearComparison: () => void;
+  onClearHistory: () => void;
 }
 
-export function AnalyticsDashboard({ results, aggregatedResults }: AnalyticsDashboardProps) {
+export function AnalyticsDashboard({
+  results,
+  config,
+  aggregatedResults,
+  savedSimulations,
+  selectedForComparison,
+  onSaveSimulation,
+  onDeleteSimulation,
+  onRenameSimulation,
+  onToggleComparison,
+  onClearComparison,
+  onClearHistory,
+}: AnalyticsDashboardProps) {
   const [activeTab, setActiveTab] = useState("overview");
 
   if (!aggregatedResults || results.length === 0) {
@@ -142,7 +166,7 @@ export function AnalyticsDashboard({ results, aggregatedResults }: AnalyticsDash
 
       <CardContent className="p-0 overflow-hidden">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full">
-          <div className="border-b px-4 print:hidden">
+          <div className="border-b px-4 print:hidden overflow-x-auto">
             <TabsList className="h-10">
               <TabsTrigger value="overview" className="text-xs">
                 <BarChart3 className="w-3.5 h-3.5 mr-1.5" />
@@ -163,6 +187,10 @@ export function AnalyticsDashboard({ results, aggregatedResults }: AnalyticsDash
               <TabsTrigger value="statistics" className="text-xs">
                 <Activity className="w-3.5 h-3.5 mr-1.5" />
                 Statistics
+              </TabsTrigger>
+              <TabsTrigger value="history" className="text-xs">
+                <History className="w-3.5 h-3.5 mr-1.5" />
+                History
               </TabsTrigger>
             </TabsList>
           </div>
@@ -225,6 +253,22 @@ export function AnalyticsDashboard({ results, aggregatedResults }: AnalyticsDash
 
             <TabsContent value="statistics" className="mt-0">
               <StatisticalSummary results={results} />
+            </TabsContent>
+
+            <TabsContent value="history" className="mt-0">
+              <HistoricalComparison
+                savedSimulations={savedSimulations}
+                selectedForComparison={selectedForComparison}
+                currentResults={results}
+                currentConfig={config}
+                currentAggregated={aggregatedResults}
+                onSave={onSaveSimulation}
+                onDelete={onDeleteSimulation}
+                onRename={onRenameSimulation}
+                onToggleComparison={onToggleComparison}
+                onClearComparison={onClearComparison}
+                onClearHistory={onClearHistory}
+              />
             </TabsContent>
           </div>
         </Tabs>
