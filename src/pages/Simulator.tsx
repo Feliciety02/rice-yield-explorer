@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useSimulation } from "@/hooks/useSimulation";
+import { useSimulationHistory } from "@/hooks/useSimulationHistory";
 import { Navbar } from "@/components/layout/Navbar";
 import { SimulationInputPanel } from "@/components/simulation/SimulationInputPanel";
 import { RiceFieldSimulationPanel } from "@/components/simulation/RiceFieldSimulationPanel";
@@ -31,6 +32,17 @@ const Simulator = () => {
     reset,
   } = useSimulation();
 
+  const {
+    savedSimulations,
+    selectedForComparison,
+    saveSimulation,
+    deleteSimulation,
+    renameSimulation,
+    toggleComparison,
+    clearComparison,
+    clearHistory,
+  } = useSimulationHistory();
+
   const currentSeasons = results.length > 0 ? results[0].seasons : [];
 
   const handleStep = () => {
@@ -44,6 +56,12 @@ const Simulator = () => {
   const handleReset = () => {
     setActiveSeasonIndex(0);
     setIsPlaying(false);
+  };
+
+  const handleSaveSimulation = (name: string) => {
+    if (aggregatedResults) {
+      saveSimulation(name, config, results, aggregatedResults);
+    }
   };
 
   return (
@@ -123,7 +141,16 @@ const Simulator = () => {
               ) : (
                 <AnalyticsDashboard
                   results={results}
+                  config={config}
                   aggregatedResults={aggregatedResults}
+                  savedSimulations={savedSimulations}
+                  selectedForComparison={selectedForComparison}
+                  onSaveSimulation={handleSaveSimulation}
+                  onDeleteSimulation={deleteSimulation}
+                  onRenameSimulation={renameSimulation}
+                  onToggleComparison={toggleComparison}
+                  onClearComparison={clearComparison}
+                  onClearHistory={clearHistory}
                 />
               )}
             </div>
