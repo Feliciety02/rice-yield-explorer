@@ -1,8 +1,8 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Navbar } from "@/components/layout/Navbar";
-import { SCENARIOS } from "@/types/simulation";
 import { 
   Sun, 
   CloudRain, 
@@ -12,6 +12,7 @@ import {
   ArrowRight,
   Leaf
 } from "lucide-react";
+import { useScenarioData } from "@/context/scenario-data";
 
 const scenarioIcons = [Sun, CloudRain, CloudRain, Shuffle, Sprout];
 const scenarioColors = [
@@ -23,6 +24,7 @@ const scenarioColors = [
 ];
 
 const Index = () => {
+  const { scenarios, isLoading, error } = useScenarioData();
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -96,8 +98,30 @@ const Index = () => {
           </div>
           
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
-            {SCENARIOS.map((scenario, index) => {
-              const Icon = scenarioIcons[index];
+            {isLoading && scenarios.length === 0 && (
+              <>
+                {Array.from({ length: 3 }).map((_, idx) => (
+                  <Card key={`scenario-skeleton-${idx}`} className="scenario-card">
+                    <CardContent className="py-6 space-y-3">
+                      <Skeleton className="h-12 w-12 rounded-xl" />
+                      <Skeleton className="h-4 w-2/3" />
+                      <Skeleton className="h-3 w-full" />
+                      <Skeleton className="h-3 w-5/6" />
+                    </CardContent>
+                  </Card>
+                ))}
+              </>
+            )}
+            {error && scenarios.length === 0 && (
+              <Card className="scenario-card border-destructive/40">
+                <CardContent className="py-10 text-center text-sm text-destructive">
+                  {error}
+                </CardContent>
+              </Card>
+            )}
+            {scenarios.map((scenario, index) => {
+              const Icon = scenarioIcons[index] ?? Leaf;
+              const colorClass = scenarioColors[index] ?? "bg-primary/10 text-primary border-primary/20";
               return (
                 <Card 
                   key={scenario.id} 
@@ -105,7 +129,7 @@ const Index = () => {
                   style={{ animationDelay: `${index * 0.1}s` }}
                 >
                   <CardHeader className="pb-3">
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center border ${scenarioColors[index]} mb-3 transition-transform group-hover:scale-110`}>
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center border ${colorClass} mb-3 transition-transform group-hover:scale-110`}>
                       <Icon className="w-6 h-6" />
                     </div>
                     <CardTitle className="font-serif text-xl">{scenario.name}</CardTitle>
@@ -130,7 +154,7 @@ const Index = () => {
             <Card className="scenario-card bg-primary text-primary-foreground border-primary flex flex-col justify-center">
               <CardContent className="text-center py-8">
                 <Cloud className="w-12 h-12 mx-auto mb-4 opacity-80" />
-                <h3 className="font-serif text-xl font-bold mb-3">Ready to Simulate?</h3>
+                <h3 className="font-serif text-xl font-bold mb-3">Ready to Simulate</h3>
                 <p className="text-primary-foreground/80 text-sm mb-6">
                   Configure parameters and run your own simulations
                 </p>
@@ -149,7 +173,7 @@ const Index = () => {
       {/* Footer */}
       <footer className="py-8 border-t border-border bg-muted/20">
         <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-          <p>Rice Yield Simulation Tool — Academic Research Application</p>
+          <p>Rice Yield Simulation Tool - Academic Research Application</p>
           <p className="mt-2">
             Built for educational and decision-support purposes
           </p>

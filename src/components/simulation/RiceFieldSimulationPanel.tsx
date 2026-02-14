@@ -64,7 +64,7 @@ import { Button } from "@/components/ui/button";
      normal: "Normal rainfall",
      high: "High rainfall",
    };
-   return `${labels[season.rainfall]} • ${season.yield.toFixed(1)} t/ha`;
+   return `${labels[season.rainfall]} - ${season.yield.toFixed(1)} t/ha`;
  };
  
  export function RiceFieldSimulationPanel({
@@ -141,8 +141,8 @@ import { Button } from "@/components/ui/button";
    const handleTimelineScrub = useCallback((e: React.MouseEvent) => {
      if (!timelineRef.current || seasons.length === 0) return;
      const rect = timelineRef.current.getBoundingClientRect();
-     const x = e.clientX - rect.left;
-     const progress = Math.max(0, Math.min(1, x / rect.width));
+    const x = e.clientX - rect.left;
+    const progress = Math.max(0, Math.min(1, x / rect.width));
      const seasonIndex = Math.round(progress * (seasons.length - 1));
      onSelectSeason(seasonIndex);
    }, [seasons.length, onSelectSeason]);
@@ -398,7 +398,7 @@ import { Button } from "@/components/ui/button";
               Season {activeSeasonIndex + 1} of {seasons.length}
             </p>
             <p className="text-xs text-muted-foreground">
-              Speed: {playbackSpeed}x • {isLooping ? "Looping" : "Once"}
+              Speed: {playbackSpeed}x - {isLooping ? "Looping" : "Once"}
             </p>
           </div>
 
@@ -452,7 +452,7 @@ import { Button } from "@/components/ui/button";
                 <TooltipContent>
                   <p className="font-medium">Season {idx + 1}</p>
                   <p className="text-xs text-muted-foreground capitalize">
-                    {season.rainfall} rainfall • {season.yield.toFixed(1)} t/ha
+                    {season.rainfall} rainfall - {season.yield.toFixed(1)} t/ha
                   </p>
                 </TooltipContent>
               </Tooltip>
@@ -539,13 +539,13 @@ import { Button } from "@/components/ui/button";
                       variant="outline"
                       size="icon"
                       onClick={onStep}
-                      aria-label="Next season (→)"
+                      aria-label="Next season (->)"
                     >
                       <SkipForward className="w-4 h-4" />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>Next season (→)</p>
+                    <p>Next season (-&gt;)</p>
                   </TooltipContent>
                 </Tooltip>
 
@@ -698,14 +698,14 @@ import { Button } from "@/components/ui/button";
                    variant="outline"
                    size="icon"
                    onClick={onStep}
-                   aria-label="Next season (→)"
+                   aria-label="Next season (->)"
                  >
                    <SkipForward className="w-4 h-4" />
                  </Button>
                </TooltipTrigger>
-               <TooltipContent>
-                 <p>Next season (→)</p>
-               </TooltipContent>
+              <TooltipContent>
+                <p>Next season (-&gt;)</p>
+              </TooltipContent>
              </Tooltip>
  
              <Tooltip>

@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 import os
+from typing import Literal
 
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from . import crud, schemas
 from .db import Base, engine, get_db
-from .simulation.engine import build_simulation_payload
+from .simulation.engine import SCENARIOS, YIELD_BY_RAINFALL, build_simulation_payload
 
 Base.metadata.create_all(bind=engine)
 
@@ -37,8 +39,22 @@ def root() -> dict[str, str]:
 
 
 @app.get("/api/health")
-def health() -> dict[str, str]:
-    return {"status": "ok"}
+def health(db: Session = Depends(get_db)) -> dict[str, str]:
+    try:
+        db.execute(text("SELECT 1"))
+        return {"status": "ok", "database": "ok"}
+    except Exception:
+        return {"status": "degraded", "database": "error"}
+
+
+@app.get("/api/scenarios", response_model=list[schemas.Scenario])
+def list_scenarios() -> list[schemas.Scenario]:
+    return [schemas.Scenario.model_validate(scenario) for scenario in SCENARIOS]
+
+
+@app.get("/api/yield-by-rainfall", response_model=schemas.YieldByRainfall)
+def get_yield_by_rainfall() -> schemas.YieldByRainfall:
+    return schemas.YieldByRainfall.model_validate(YIELD_BY_RAINFALL)
 
 
 @app.post(
@@ -72,14 +88,56 @@ def run_simulation(
     return simulation
 
 
+def _normalize_date_filter(value: str, is_end: bool) -> str:
+    if len(value) == 10:
+        return f"{value}T23:59:59.999Z" if is_end else f"{value}T00:00:00.000Z"
+    return value
+
+
 @app.get("/api/simulations", response_model=schemas.SimulationListResponse)
 def list_simulations(
-    limit: int = 20,
-    offset: int = 0,
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    sort_by: Literal["created_at", "average_yield"] = Query("created_at"),
+    sort_order: Literal["asc", "desc"] = Query("desc"),
+    scenario_id: int | None = Query(None, ge=1, le=5),
+    min_avg_yield: float | None = Query(None, ge=0),
+    max_avg_yield: float | None = Query(None, ge=0),
+    created_after: str | None = Query(None),
+    created_before: str | None = Query(None),
     db: Session = Depends(get_db),
 ) -> schemas.SimulationListResponse:
-    items = crud.get_simulations(db, limit=limit, offset=offset)
-    total = crud.get_simulation_count(db)
+    normalized_after = (
+        _normalize_date_filter(created_after, is_end=False)
+        if created_after
+        else None
+    )
+    normalized_before = (
+        _normalize_date_filter(created_before, is_end=True)
+        if created_before
+        else None
+    )
+
+    items = crud.get_simulations(
+        db,
+        limit=limit,
+        offset=offset,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        scenario_id=scenario_id,
+        min_avg_yield=min_avg_yield,
+        max_avg_yield=max_avg_yield,
+        created_after=normalized_after,
+        created_before=normalized_before,
+    )
+    total = crud.get_simulation_count(
+        db,
+        scenario_id=scenario_id,
+        min_avg_yield=min_avg_yield,
+        max_avg_yield=max_avg_yield,
+        created_after=normalized_after,
+        created_before=normalized_before,
+    )
     return schemas.SimulationListResponse(
         items=items,
         total=total,

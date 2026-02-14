@@ -24,11 +24,15 @@ py -3.13 -m uvicorn backend.app.main:app --reload --port 8000
 ```
 
 ## Endpoints
-- `GET /api/health`
+- `GET /api/health` returns `{ status, database }` where `database` is `ok` or `error`
+- `GET /api/scenarios`
+- `GET /api/yield-by-rainfall`
 - `POST /api/simulations`
 - `POST /api/simulations/run`
 - `GET /api/simulations`
-- `GET /api/simulations?limit=10&offset=0` returns `{ items, total, limit, offset }`
+- `GET /api/simulations?limit=10&offset=0` returns `{ items, total, limit, offset }` (limit 1-100, offset >= 0)
+  - Optional filters: `scenario_id` (1-5), `min_avg_yield`, `max_avg_yield`, `created_after`, `created_before`
+  - Optional sorting: `sort_by` (`created_at` | `average_yield`), `sort_order` (`asc` | `desc`)
 - `GET /api/simulations/{id}`
 - `PATCH /api/simulations/{id}`
 - `DELETE /api/simulations/{id}`

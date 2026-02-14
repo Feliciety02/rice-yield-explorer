@@ -1,6 +1,7 @@
  import { Card, CardContent, CardHeader } from "@/components/ui/card";
- import { SimulationRun, SCENARIOS } from "@/types/simulation";
- import {
+import { Skeleton } from "@/components/ui/skeleton";
+import { SimulationRun } from "@/types/simulation";
+import {
    BarChart,
    Bar,
    XAxis,
@@ -13,7 +14,8 @@
    Cell,
  } from "recharts";
  import { TrendingUp, TrendingDown, Activity, AlertTriangle, Download } from "lucide-react";
- import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
+import { useScenarioData } from "@/context/scenario-data";
  import {
    Table,
    TableBody,
@@ -32,13 +34,43 @@
      yieldVariability: "low" | "medium" | "high";
      lowYieldPercent: number;
    } | null;
+  isRunning?: boolean;
  }
  
- export function SimulationResultsPanel({
-   results,
-   aggregatedResults,
- }: SimulationResultsPanelProps) {
-   if (!aggregatedResults || results.length === 0) {
+export function SimulationResultsPanel({
+  results,
+  aggregatedResults,
+  isRunning = false,
+}: SimulationResultsPanelProps) {
+  const { scenarios } = useScenarioData();
+  if (isRunning && (!aggregatedResults || results.length === 0)) {
+    return (
+      <Card className="panel h-full">
+        <CardHeader className="panel-header">
+          <h3 className="font-serif text-lg">Results & Analysis</h3>
+        </CardHeader>
+        <CardContent className="p-4 space-y-6">
+          <div className="grid grid-cols-2 gap-3">
+            {Array.from({ length: 4 }).map((_, idx) => (
+              <div key={`metric-skeleton-${idx}`} className="metric-card">
+                <Skeleton className="h-4 w-24 mb-2" />
+                <Skeleton className="h-8 w-20" />
+              </div>
+            ))}
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-48 w-full" />
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-40" />
+            <Skeleton className="h-32 w-full" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+  if (!aggregatedResults || results.length === 0) {
      return (
        <Card className="panel h-full">
          <CardHeader className="panel-header">
@@ -60,13 +92,13 @@
      rainfall: s.rainfall,
    }));
  
-   const comparisonData = results.map((r) => {
-     const scenario = SCENARIOS.find((s) => s.id === r.scenarioId);
-     return {
-       name: scenario?.name.split(" ")[0] || `Scenario ${r.scenarioId}`,
-       fullName: scenario?.name || `Scenario ${r.scenarioId}`,
-       averageYield: r.averageYield,
-       minYield: r.minYield,
+  const comparisonData = results.map((r) => {
+    const scenario = scenarios.find((s) => s.id === r.scenarioId);
+    return {
+      name: scenario?.name.split(" ")[0] || `Scenario ${r.scenarioId}`,
+      fullName: scenario?.name || `Scenario ${r.scenarioId}`,
+      averageYield: r.averageYield,
+      minYield: r.minYield,
        maxYield: r.maxYield,
      };
    });
@@ -77,14 +109,14 @@
      high: "text-destructive",
    };
  
-   const exportCSV = () => {
-     const headers = ["Scenario", "Season", "Rainfall", "Yield (t/ha)"];
-     const rows = results.flatMap((r) => {
-       const scenario = SCENARIOS.find((s) => s.id === r.scenarioId)?.name || `Scenario ${r.scenarioId}`;
-       return r.seasons.map((s) => [
-         scenario,
-         s.seasonIndex + 1,
-         s.rainfall,
+  const exportCSV = () => {
+    const headers = ["Scenario", "Season", "Rainfall", "Yield (t/ha)"];
+    const rows = results.flatMap((r) => {
+      const scenario = scenarios.find((s) => s.id === r.scenarioId)?.name || `Scenario ${r.scenarioId}`;
+      return r.seasons.map((s) => [
+        scenario,
+        s.seasonIndex + 1,
+        s.rainfall,
          s.yield,
        ]);
      });
@@ -230,12 +262,12 @@
                  </TableRow>
                </TableHeader>
                <TableBody>
-                 {results.map((r) => {
-                   const scenario = SCENARIOS.find((s) => s.id === r.scenarioId);
-                   return (
-                     <TableRow key={r.scenarioId}>
-                       <TableCell className="font-medium">
-                         {scenario?.name || `Scenario ${r.scenarioId}`}
+                {results.map((r) => {
+                  const scenario = scenarios.find((s) => s.id === r.scenarioId);
+                  return (
+                    <TableRow key={r.scenarioId}>
+                      <TableCell className="font-medium">
+                        {scenario?.name || `Scenario ${r.scenarioId}`}
                        </TableCell>
                        <TableCell className="text-right">{r.averageYield} t/ha</TableCell>
                        <TableCell className="text-right">{r.minYield} t/ha</TableCell>
@@ -259,11 +291,11 @@
              <p className="text-sm text-muted-foreground">
                {(() => {
                  const sorted = [...results].sort((a, b) => b.averageYield - a.averageYield);
-                 const best = SCENARIOS.find((s) => s.id === sorted[0].scenarioId);
+                 const best = scenarios.find((s) => s.id === sorted[0].scenarioId);
                  const mostStable = [...results].sort(
                    (a, b) => a.lowYieldPercent - b.lowYieldPercent
                  )[0];
-                 const stableScenario = SCENARIOS.find((s) => s.id === mostStable.scenarioId);
+                 const stableScenario = scenarios.find((s) => s.id === mostStable.scenarioId);
                  return (
                    <>
                      <strong>{best?.name}</strong> produces the highest average yield ({sorted[0].averageYield} t/ha),

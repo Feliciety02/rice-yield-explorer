@@ -83,7 +83,7 @@ export function SeasonalTrendChart({ results }: SeasonalTrendChartProps) {
               : "bg-muted text-muted-foreground"
           }`}
         >
-          {trendDirection === "improving" ? "↑" : trendDirection === "declining" ? "↓" : "→"}{" "}
+          {trendDirection === "improving" ? "^" : trendDirection === "declining" ? "v" : "->"}{" "}
           {trendDirection}
         </span>
       </div>
@@ -154,7 +154,7 @@ export function SeasonalTrendChart({ results }: SeasonalTrendChartProps) {
         <strong className="text-foreground">Trend coefficient:</strong> {slope.toFixed(3)} t/ha per season
         {Math.abs(slope) > 0.05 && (
           <span>
-            {" "}— Yields are {slope > 0 ? "increasing" : "decreasing"} by approximately{" "}
+            {" "}- Yields are {slope > 0 ? "increasing" : "decreasing"} by approximately{" "}
             {Math.abs(slope * 10).toFixed(2)} t/ha over 10 seasons.
           </span>
         )}

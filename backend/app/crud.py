@@ -8,6 +8,31 @@ from sqlalchemy.orm import Session, selectinload
 from . import models, schemas
 
 
+def _build_simulation_filters(
+    scenario_id: int | None,
+    min_avg_yield: float | None,
+    max_avg_yield: float | None,
+    created_after: str | None,
+    created_before: str | None,
+) -> tuple[list, bool]:
+    clauses = []
+    needs_run_join = False
+
+    if scenario_id is not None:
+        clauses.append(models.SimulationRun.scenario_id == scenario_id)
+        needs_run_join = True
+    if min_avg_yield is not None:
+        clauses.append(models.Simulation.average_yield >= min_avg_yield)
+    if max_avg_yield is not None:
+        clauses.append(models.Simulation.average_yield <= max_avg_yield)
+    if created_after is not None:
+        clauses.append(models.Simulation.created_at >= created_after)
+    if created_before is not None:
+        clauses.append(models.Simulation.created_at <= created_before)
+
+    return clauses, needs_run_join
+
+
 def create_simulation(db: Session, payload: schemas.SimulationCreate) -> models.Simulation:
     simulation_id = payload.id or str(uuid.uuid4())
 
@@ -75,18 +100,77 @@ def get_simulation(db: Session, simulation_id: str) -> models.Simulation | None:
     return db.scalars(stmt).first()
 
 
-def get_simulations(db: Session, limit: int = 20, offset: int = 0) -> list[models.Simulation]:
+def get_simulations(
+    db: Session,
+    limit: int = 20,
+    offset: int = 0,
+    sort_by: str = "created_at",
+    sort_order: str = "desc",
+    scenario_id: int | None = None,
+    min_avg_yield: float | None = None,
+    max_avg_yield: float | None = None,
+    created_after: str | None = None,
+    created_before: str | None = None,
+) -> list[models.Simulation]:
+    sort_map = {
+        "created_at": models.Simulation.created_at,
+        "average_yield": models.Simulation.average_yield,
+    }
+    sort_column = sort_map.get(sort_by, models.Simulation.created_at)
+    sort_clause = sort_column.asc() if sort_order == "asc" else sort_column.desc()
+
+    clauses, needs_run_join = _build_simulation_filters(
+        scenario_id,
+        min_avg_yield,
+        max_avg_yield,
+        created_after,
+        created_before,
+    )
+
+    stmt = select(models.Simulation)
+    if needs_run_join:
+        stmt = stmt.join(models.SimulationRun)
+    for clause in clauses:
+        stmt = stmt.where(clause)
+    if needs_run_join:
+        stmt = stmt.distinct()
     stmt = (
-        select(models.Simulation)
-        .order_by(models.Simulation.created_at.desc())
+        stmt.order_by(sort_clause, models.Simulation.created_at.desc())
         .limit(limit)
         .offset(offset)
     )
+
     return list(db.scalars(stmt).all())
 
 
-def get_simulation_count(db: Session) -> int:
-    count = db.scalar(select(func.count()).select_from(models.Simulation))
+def get_simulation_count(
+    db: Session,
+    scenario_id: int | None = None,
+    min_avg_yield: float | None = None,
+    max_avg_yield: float | None = None,
+    created_after: str | None = None,
+    created_before: str | None = None,
+) -> int:
+    clauses, needs_run_join = _build_simulation_filters(
+        scenario_id,
+        min_avg_yield,
+        max_avg_yield,
+        created_after,
+        created_before,
+    )
+
+    if needs_run_join:
+        stmt = (
+            select(func.count(func.distinct(models.Simulation.id)))
+            .select_from(models.Simulation)
+            .join(models.SimulationRun)
+        )
+    else:
+        stmt = select(func.count()).select_from(models.Simulation)
+    for clause in clauses:
+        stmt = stmt.where(clause)
+
+    count = db.scalar(stmt)
     return int(count or 0)
 
 

@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { SimulationRun, SimulationConfig, SavedSimulation, SCENARIOS } from "@/types/simulation";
+import { SimulationRun, SimulationConfig, SavedSimulation } from "@/types/simulation";
+import type { HistoryFilters } from "@/hooks/useSimulationHistory";
 import { YieldDistributionChart } from "./YieldDistributionChart";
 import { CumulativeProbabilityChart } from "./CumulativeProbabilityChart";
 import { StatisticalSummary } from "./StatisticalSummary";
@@ -28,6 +30,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useScenarioData } from "@/context/scenario-data";
 
 interface AnalyticsDashboardProps {
   results: SimulationRun[];
@@ -39,6 +42,7 @@ interface AnalyticsDashboardProps {
     yieldVariability: "low" | "medium" | "high";
     lowYieldPercent: number;
   } | null;
+  isRunning?: boolean;
   // History props
   savedSimulations: SavedSimulation[];
   selectedForComparison: string[];
@@ -47,6 +51,9 @@ interface AnalyticsDashboardProps {
   historyTotal: number;
   historyPage: number;
   historyTotalPages: number;
+  historyFilters: HistoryFilters;
+  onUpdateHistoryFilters: (patch: Partial<HistoryFilters>) => void;
+  onResetHistoryFilters: () => void;
   onLoadNextPage: () => void;
   onLoadPrevPage: () => void;
   onRefreshHistory: () => void;
@@ -62,6 +69,7 @@ export function AnalyticsDashboard({
   results,
   config,
   aggregatedResults,
+  isRunning = false,
   savedSimulations,
   selectedForComparison,
   comparisonSimulations,
@@ -69,6 +77,9 @@ export function AnalyticsDashboard({
   historyTotal,
   historyPage,
   historyTotalPages,
+  historyFilters,
+  onUpdateHistoryFilters,
+  onResetHistoryFilters,
   onLoadNextPage,
   onLoadPrevPage,
   onRefreshHistory,
@@ -79,7 +90,36 @@ export function AnalyticsDashboard({
   onClearComparison,
   onClearHistory,
 }: AnalyticsDashboardProps) {
+  const { scenarios, yieldByRainfall } = useScenarioData();
   const [activeTab, setActiveTab] = useState("overview");
+
+  if (isRunning && (!aggregatedResults || results.length === 0)) {
+    return (
+      <Card className="panel h-full">
+        <CardHeader className="panel-header">
+          <h3 className="font-serif text-lg">Analytics Dashboard</h3>
+        </CardHeader>
+        <CardContent className="p-4 space-y-6">
+          <div className="grid grid-cols-4 gap-3">
+            {Array.from({ length: 4 }).map((_, idx) => (
+              <div key={`stat-skeleton-${idx}`} className="bg-muted rounded-lg p-3">
+                <Skeleton className="h-4 w-16 mb-2" />
+                <Skeleton className="h-6 w-20" />
+              </div>
+            ))}
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-56 w-full" />
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-40" />
+            <Skeleton className="h-56 w-full" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (!aggregatedResults || results.length === 0) {
     return (
@@ -102,7 +142,7 @@ export function AnalyticsDashboard({
   const exportCSV = () => {
     const headers = ["Scenario", "Season", "Rainfall", "Yield (t/ha)"];
     const rows = results.flatMap((r) => {
-      const scenario = SCENARIOS.find((s) => s.id === r.scenarioId)?.name || `Scenario ${r.scenarioId}`;
+      const scenario = scenarios.find((s) => s.id === r.scenarioId)?.name || `Scenario ${r.scenarioId}`;
       return r.seasons.map((s) => [
         scenario,
         s.seasonIndex + 1,
@@ -126,7 +166,7 @@ export function AnalyticsDashboard({
       generatedAt: new Date().toISOString(),
       summary: aggregatedResults,
       scenarios: results.map((r) => ({
-        scenario: SCENARIOS.find((s) => s.id === r.scenarioId)?.name || `Scenario ${r.scenarioId}`,
+        scenario: scenarios.find((s) => s.id === r.scenarioId)?.name || `Scenario ${r.scenarioId}`,
         metrics: {
           averageYield: r.averageYield,
           minYield: r.minYield,
@@ -144,6 +184,37 @@ export function AnalyticsDashboard({
     const a = document.createElement("a");
     a.href = url;
     a.download = "rice_simulation_report.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportFullReport = () => {
+    const exportData = {
+      generatedAt: new Date().toISOString(),
+      config,
+      summary: aggregatedResults,
+      scenarioCatalog: scenarios,
+      yieldByRainfall,
+      runs: results.map((r) => ({
+        scenarioId: r.scenarioId,
+        scenario: scenarios.find((s) => s.id === r.scenarioId) ?? null,
+        metrics: {
+          averageYield: r.averageYield,
+          minYield: r.minYield,
+          maxYield: r.maxYield,
+          variability: r.yieldVariability,
+          lowYieldPercent: r.lowYieldPercent,
+        },
+        seasons: r.seasons,
+      })),
+    };
+
+    const json = JSON.stringify(exportData, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "rice_simulation_full_report.json";
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -171,6 +242,10 @@ export function AnalyticsDashboard({
             <DropdownMenuItem onClick={exportJSON}>
               <FileJson className="w-4 h-4 mr-2" />
               Export as JSON
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={exportFullReport}>
+              <FileJson className="w-4 h-4 mr-2" />
+              Export Full Report
             </DropdownMenuItem>
             <DropdownMenuItem onClick={printReport}>
               <Printer className="w-4 h-4 mr-2" />
@@ -283,6 +358,9 @@ export function AnalyticsDashboard({
                 totalCount={historyTotal}
                 currentPage={historyPage}
                 totalPages={historyTotalPages}
+                filters={historyFilters}
+                onUpdateFilters={onUpdateHistoryFilters}
+                onResetFilters={onResetHistoryFilters}
                 onLoadNextPage={onLoadNextPage}
                 onLoadPrevPage={onLoadPrevPage}
                 onRefresh={onRefreshHistory}

@@ -75,8 +75,8 @@ export function CumulativeProbabilityChart({ results }: CumulativeProbabilityCha
                 border: "1px solid hsl(var(--border))",
                 borderRadius: "8px",
               }}
-              formatter={(value: number) => [`${value}%`, "P(Yield ≤ X)"]}
-              labelFormatter={(label) => `Yield ≤ ${label} t/ha`}
+              formatter={(value: number) => [`${value}%`, "P(Yield <= X)"]}
+              labelFormatter={(label) => `Yield <= ${label} t/ha`}
             />
             <ReferenceLine
               x={percentiles.p50}

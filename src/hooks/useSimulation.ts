@@ -1,14 +1,18 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import {
   SimulationConfig,
   SimulationExecuteRequest,
   SimulationResponse,
   SimulationRun,
   RainfallProbabilities,
-  SCENARIOS,
   ScenarioId,
 } from "@/types/simulation";
 import { runSimulation as runSimulationApi } from "@/lib/api";
+import { useScenarioData } from "@/context/scenario-data";
+import { toast } from "@/hooks/use-toast";
+
+const STORAGE_KEY = "rice_yield_simulation_state";
+const STORAGE_VERSION = 1;
 
 type AggregatedResults = {
   averageYield: number;
@@ -17,6 +21,129 @@ type AggregatedResults = {
   yieldVariability: "low" | "medium" | "high";
   lowYieldPercent: number;
 };
+
+type PersistedSimulationState = {
+  version: number;
+  config: SimulationConfig;
+  results: SimulationRun[];
+  aggregatedResults: AggregatedResults | null;
+  lastSimulationId: string | null;
+  activeSeasonIndex: number;
+};
+
+function isNumber(value: unknown): value is number {
+  return typeof value === "number" && !Number.isNaN(value);
+}
+
+function normalizeConfig(value: unknown): SimulationConfig | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+  const candidate = value as Partial<SimulationConfig> & {
+    probabilities?: Partial<RainfallProbabilities>;
+  };
+  if (
+    !isNumber(candidate.scenarioId) ||
+    !isNumber(candidate.numSeasons) ||
+    !isNumber(candidate.numReplications) ||
+    !candidate.probabilities
+  ) {
+    return null;
+  }
+  const probs = candidate.probabilities;
+  if (!isNumber(probs.low) || !isNumber(probs.normal) || !isNumber(probs.high)) {
+    return null;
+  }
+  return {
+    scenarioId: candidate.scenarioId as ScenarioId,
+    numSeasons: Math.max(1, Math.floor(candidate.numSeasons)),
+    numReplications: Math.max(1, Math.floor(candidate.numReplications)),
+    probabilities: {
+      low: probs.low,
+      normal: probs.normal,
+      high: probs.high,
+    },
+    seed: isNumber(candidate.seed) ? candidate.seed : undefined,
+  };
+}
+
+function normalizeAggregatedResults(value: unknown): AggregatedResults | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+  const candidate = value as Partial<AggregatedResults>;
+  if (
+    !isNumber(candidate.averageYield) ||
+    !isNumber(candidate.minYield) ||
+    !isNumber(candidate.maxYield) ||
+    !isNumber(candidate.lowYieldPercent)
+  ) {
+    return null;
+  }
+  if (
+    candidate.yieldVariability !== "low" &&
+    candidate.yieldVariability !== "medium" &&
+    candidate.yieldVariability !== "high"
+  ) {
+    return null;
+  }
+  return candidate as AggregatedResults;
+}
+
+function loadPersistedState(): PersistedSimulationState | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) {
+      return null;
+    }
+    const parsed = JSON.parse(raw) as Partial<PersistedSimulationState> | null;
+    if (!parsed || parsed.version !== STORAGE_VERSION) {
+      return null;
+    }
+    const config = normalizeConfig(parsed.config);
+    if (!config) {
+      return null;
+    }
+    const results = Array.isArray(parsed.results)
+      ? (parsed.results as SimulationRun[])
+      : [];
+    const aggregatedResults = normalizeAggregatedResults(
+      parsed.aggregatedResults
+    );
+    const lastSimulationId =
+      typeof parsed.lastSimulationId === "string"
+        ? parsed.lastSimulationId
+        : null;
+    const activeSeasonIndex = isNumber(parsed.activeSeasonIndex)
+      ? parsed.activeSeasonIndex
+      : 0;
+
+    return {
+      version: STORAGE_VERSION,
+      config,
+      results,
+      aggregatedResults,
+      lastSimulationId,
+      activeSeasonIndex,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function persistState(state: PersistedSimulationState) {
+  if (typeof window === "undefined") {
+    return;
+  }
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    // Ignore write errors (e.g., storage full or disabled)
+  }
+}
 
 function mapSimulationResponse(response: SimulationResponse): {
   results: SimulationRun[];
@@ -48,13 +175,16 @@ function mapSimulationResponse(response: SimulationResponse): {
 }
 
 export function useSimulation() {
+  const { scenarios } = useScenarioData();
   const [config, setConfig] = useState<SimulationConfig>({
     scenarioId: 1,
     numSeasons: 10,
     numReplications: 1,
-    probabilities: { ...SCENARIOS[0].defaultProbabilities },
+    probabilities: { low: 0, normal: 100, high: 0 },
     seed: undefined,
   });
+  const [hasScenarioDefaults, setHasScenarioDefaults] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(false);
 
   const [results, setResults] = useState<SimulationRun[]>([]);
   const [aggregatedResults, setAggregatedResults] = useState<AggregatedResults | null>(null);
@@ -65,18 +195,84 @@ export function useSimulation() {
   const [isPlaying, setIsPlaying] = useState(false);
 
   const currentScenario = useMemo(
-    () => SCENARIOS.find((s) => s.id === config.scenarioId) || SCENARIOS[0],
-    [config.scenarioId]
+    () => scenarios.find((s) => s.id === config.scenarioId) || null,
+    [config.scenarioId, scenarios]
   );
 
+  useEffect(() => {
+    const persisted = loadPersistedState();
+    if (persisted) {
+      setConfig(persisted.config);
+      setResults(persisted.results);
+      setAggregatedResults(persisted.aggregatedResults);
+      setLastSimulationId(persisted.lastSimulationId);
+      const maxSeasonIndex =
+        persisted.results.length > 0
+          ? Math.max(0, persisted.results[0].seasons.length - 1)
+          : 0;
+      setActiveSeasonIndex(
+        Math.min(Math.max(0, persisted.activeSeasonIndex), maxSeasonIndex)
+      );
+      setHasScenarioDefaults(true);
+    }
+    setIsHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isHydrated || scenarios.length === 0) {
+      return;
+    }
+    const scenario = scenarios.find((s) => s.id === config.scenarioId);
+    if (!scenario) {
+      const fallback = scenarios[0];
+      setConfig((prev) => ({
+        ...prev,
+        scenarioId: fallback.id,
+        probabilities: { ...fallback.defaultProbabilities },
+      }));
+      setHasScenarioDefaults(true);
+      return;
+    }
+    if (hasScenarioDefaults) {
+      return;
+    }
+    setConfig((prev) => ({
+      ...prev,
+      scenarioId: scenario.id,
+      probabilities: { ...scenario.defaultProbabilities },
+    }));
+    setHasScenarioDefaults(true);
+  }, [config.scenarioId, hasScenarioDefaults, isHydrated, scenarios]);
+
+  useEffect(() => {
+    if (!isHydrated) {
+      return;
+    }
+    persistState({
+      version: STORAGE_VERSION,
+      config,
+      results,
+      aggregatedResults,
+      lastSimulationId,
+      activeSeasonIndex,
+    });
+  }, [
+    activeSeasonIndex,
+    aggregatedResults,
+    config,
+    isHydrated,
+    lastSimulationId,
+    results,
+  ]);
+
   const updateScenario = useCallback((scenarioId: ScenarioId) => {
-    const scenario = SCENARIOS.find((s) => s.id === scenarioId) || SCENARIOS[0];
+    const scenario = scenarios.find((s) => s.id === scenarioId);
     setConfig((prev) => ({
       ...prev,
       scenarioId,
-      probabilities: { ...scenario.defaultProbabilities },
+      probabilities: scenario ? { ...scenario.defaultProbabilities } : prev.probabilities,
     }));
-  }, []);
+  }, [scenarios]);
 
   const updateProbabilities = useCallback(
     (probabilities: RainfallProbabilities) => {
@@ -150,6 +346,11 @@ export function useSimulation() {
       const message = error instanceof Error ? error.message : "Simulation failed";
       console.error("Simulation failed:", error);
       setError(message);
+      toast({
+        variant: "destructive",
+        title: "Simulation failed",
+        description: message,
+      });
     } finally {
       setIsRunning(false);
     }
@@ -180,6 +381,11 @@ export function useSimulation() {
       const message = error instanceof Error ? error.message : "Simulation failed";
       console.error("Simulation failed:", error);
       setError(message);
+      toast({
+        variant: "destructive",
+        title: "Simulation failed",
+        description: message,
+      });
     } finally {
       setIsRunning(false);
     }

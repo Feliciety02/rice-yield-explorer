@@ -19,17 +19,17 @@ const FarmerGuide = () => {
             <div className="bg-background rounded-md p-2 text-center border">
               <Droplets className="w-4 h-4 mx-auto mb-1 text-blue-500" />
               <p className="font-semibold text-foreground">Wet Season</p>
-              <p className="text-muted-foreground">4.5–6.0 t/ha</p>
+              <p className="text-muted-foreground">4.5-6.0 t/ha</p>
             </div>
             <div className="bg-background rounded-md p-2 text-center border">
               <Sun className="w-4 h-4 mx-auto mb-1 text-amber-500" />
               <p className="font-semibold text-foreground">Normal</p>
-              <p className="text-muted-foreground">3.5–5.0 t/ha</p>
+              <p className="text-muted-foreground">3.5-5.0 t/ha</p>
             </div>
             <div className="bg-background rounded-md p-2 text-center border">
               <ThermometerSun className="w-4 h-4 mx-auto mb-1 text-red-500" />
               <p className="font-semibold text-foreground">Dry Season</p>
-              <p className="text-muted-foreground">1.5–3.0 t/ha</p>
+              <p className="text-muted-foreground">1.5-3.0 t/ha</p>
             </div>
           </div>
         </CardContent>
@@ -51,7 +51,7 @@ const FarmerGuide = () => {
             </p>
             <ul className="list-disc pl-4 space-y-1">
               <li><span className="font-medium text-foreground">Below Normal (&lt;200mm/month):</span> Expect significant yield losses. Consider drought-resistant varieties.</li>
-              <li><span className="font-medium text-foreground">Normal (200–300mm/month):</span> Ideal growing conditions for most rice varieties.</li>
+              <li><span className="font-medium text-foreground">Normal (200-300mm/month):</span> Ideal growing conditions for most rice varieties.</li>
               <li><span className="font-medium text-foreground">Above Normal (&gt;300mm/month):</span> Good yields possible, but watch for flooding and pest outbreaks.</li>
             </ul>
             <div className="flex gap-1.5 mt-2">
@@ -72,17 +72,17 @@ const FarmerGuide = () => {
             <div className="grid grid-cols-2 gap-2">
               <div className="bg-muted/50 rounded p-2">
                 <p className="font-semibold text-foreground text-[11px]">Wet Season Crop</p>
-                <p className="text-[10px]">Plant: June–July</p>
-                <p className="text-[10px]">Harvest: Oct–Nov</p>
+                <p className="text-[10px]">Plant: June-July</p>
+                <p className="text-[10px]">Harvest: Oct-Nov</p>
               </div>
               <div className="bg-muted/50 rounded p-2">
                 <p className="font-semibold text-foreground text-[11px]">Dry Season Crop</p>
-                <p className="text-[10px]">Plant: Nov–Dec</p>
-                <p className="text-[10px]">Harvest: Mar–Apr</p>
+                <p className="text-[10px]">Plant: Nov-Dec</p>
+                <p className="text-[10px]">Harvest: Mar-Apr</p>
               </div>
             </div>
             <p>
-              Timing your planting to coincide with the onset of rains can increase yields by <span className="font-semibold text-foreground">15–25%</span>.
+              Timing your planting to coincide with the onset of rains can increase yields by <span className="font-semibold text-foreground">15-25%</span>.
             </p>
           </AccordionContent>
         </AccordionItem>
@@ -97,8 +97,8 @@ const FarmerGuide = () => {
           <AccordionContent className="text-xs text-muted-foreground space-y-2 pb-3">
             <ul className="list-disc pl-4 space-y-1.5">
               <li><span className="font-medium text-foreground">Diversify varieties:</span> Plant both early and late-maturing varieties to spread risk.</li>
-              <li><span className="font-medium text-foreground">Stagger planting:</span> Don't plant everything at once — 2-week intervals reduce total loss risk.</li>
-              <li><span className="font-medium text-foreground">Soil moisture monitoring:</span> Check soil moisture before planting; 60–80% field capacity is ideal.</li>
+              <li><span className="font-medium text-foreground">Stagger planting:</span> Don't plant everything at once - 2-week intervals reduce total loss risk.</li>
+              <li><span className="font-medium text-foreground">Soil moisture monitoring:</span> Check soil moisture before planting; 60-80% field capacity is ideal.</li>
               <li><span className="font-medium text-foreground">Crop insurance:</span> Consider weather-index insurance where available for drought protection.</li>
             </ul>
           </AccordionContent>
@@ -124,7 +124,7 @@ const FarmerGuide = () => {
               </div>
               <div className="bg-muted/50 rounded p-2">
                 <p className="font-semibold text-foreground text-[11px]">Coefficient of Variation (CV)</p>
-                <p className="text-[10px]">Below 15% = stable. 15–25% = moderate risk. Above 25% = high risk.</p>
+                <p className="text-[10px]">Below 15% = stable. 15-25% = moderate risk. Above 25% = high risk.</p>
               </div>
             </div>
           </AccordionContent>
@@ -139,10 +139,10 @@ const FarmerGuide = () => {
           </AccordionTrigger>
           <AccordionContent className="text-xs text-muted-foreground space-y-2 pb-3">
             <ol className="list-decimal pl-4 space-y-1.5">
-              <li><span className="font-medium text-foreground">Seed selection:</span> Use certified seeds from trusted sources — yields can improve by 10–20%.</li>
-              <li><span className="font-medium text-foreground">Proper spacing:</span> 20×20 cm hills with 2–3 seedlings per hill gives optimal results.</li>
+              <li><span className="font-medium text-foreground">Seed selection:</span> Use certified seeds from trusted sources - yields can improve by 10-20%.</li>
+              <li><span className="font-medium text-foreground">Proper spacing:</span> 20x20 cm hills with 2-3 seedlings per hill gives optimal results.</li>
               <li><span className="font-medium text-foreground">Balanced fertilizer:</span> Apply N-P-K based on soil test results, not guesswork.</li>
-              <li><span className="font-medium text-foreground">Weed control:</span> First 45 days are critical — keep fields weed-free during this window.</li>
+              <li><span className="font-medium text-foreground">Weed control:</span> First 45 days are critical - keep fields weed-free during this window.</li>
               <li><span className="font-medium text-foreground">Pest scouting:</span> Weekly field visits can catch problems early and save up to 30% of yield.</li>
             </ol>
           </AccordionContent>

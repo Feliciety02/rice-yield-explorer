@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { SimulationRun, SCENARIOS } from "@/types/simulation";
+import { SimulationRun } from "@/types/simulation";
 import {
   AreaChart,
   Area,
@@ -16,6 +16,7 @@ import {
   Legend,
 } from "recharts";
 import { Target, TrendingUp, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { useScenarioData } from "@/context/scenario-data";
 
 interface MonteCarloAnalysisProps {
   results: SimulationRun[];
@@ -37,6 +38,7 @@ interface ScenarioProbability {
 }
 
 export function MonteCarloAnalysis({ results }: MonteCarloAnalysisProps) {
+  const { scenarios } = useScenarioData();
   const analysis = useMemo(() => {
     if (results.length === 0) return null;
 
@@ -118,7 +120,7 @@ export function MonteCarloAnalysis({ results }: MonteCarloAnalysisProps) {
     ];
 
     const scenarioProbabilities: ScenarioProbability[] = results.map((r, idx) => {
-      const scenario = SCENARIOS.find((s) => s.id === r.scenarioId);
+      const scenario = scenarios.find((s) => s.id === r.scenarioId);
       const seasonYields = r.seasons.map((s) => s.yield);
       const avgYield = seasonYields.reduce((a, b) => a + b, 0) / seasonYields.length;
       
@@ -158,7 +160,7 @@ export function MonteCarloAnalysis({ results }: MonteCarloAnalysisProps) {
       exceedanceProbabilities,
       n,
     };
-  }, [results]);
+  }, [results, scenarios]);
 
   if (!analysis) {
     return (
@@ -263,7 +265,7 @@ export function MonteCarloAnalysis({ results }: MonteCarloAnalysisProps) {
                   strokeWidth={2}
                   strokeDasharray="5 5"
                   label={{
-                    value: `μ=${analysis.mean.toFixed(2)}`,
+                    value: `mu=${analysis.mean.toFixed(2)}`,
                     position: "top",
                     fontSize: 10,
                     fill: "hsl(var(--primary))",
@@ -327,7 +329,7 @@ export function MonteCarloAnalysis({ results }: MonteCarloAnalysisProps) {
           <CardContent className="space-y-2">
             {analysis.exceedanceProbabilities.map(({ threshold, probability }) => (
               <div key={threshold} className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">≥ {threshold} t/ha</span>
+                <span className="text-sm text-muted-foreground">&gt;= {threshold} t/ha</span>
                 <div className="flex items-center gap-2">
                   <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
                     <div

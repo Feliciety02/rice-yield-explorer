@@ -1,8 +1,10 @@
 import type {
+  Scenario,
   SimulationExecuteRequest,
   SimulationListResponse,
   SimulationResponse,
   SimulationSummary,
+  YieldByRainfall,
 } from "@/types/simulation";
 
 const DEFAULT_API_BASE_URL = "";
@@ -49,14 +51,46 @@ export async function runSimulation(
   });
 }
 
+export type SimulationListOptions = {
+  sortBy?: "created_at" | "average_yield";
+  sortOrder?: "asc" | "desc";
+  scenarioId?: number;
+  minAvgYield?: number;
+  maxAvgYield?: number;
+  createdAfter?: string;
+  createdBefore?: string;
+};
+
 export async function listSimulations(
   limit: number,
-  offset: number
+  offset: number,
+  options: SimulationListOptions = {}
 ): Promise<SimulationListResponse> {
   const query = new URLSearchParams({
     limit: String(limit),
     offset: String(offset),
   });
+  if (options.sortBy) {
+    query.set("sort_by", options.sortBy);
+  }
+  if (options.sortOrder) {
+    query.set("sort_order", options.sortOrder);
+  }
+  if (options.scenarioId !== undefined) {
+    query.set("scenario_id", String(options.scenarioId));
+  }
+  if (options.minAvgYield !== undefined) {
+    query.set("min_avg_yield", String(options.minAvgYield));
+  }
+  if (options.maxAvgYield !== undefined) {
+    query.set("max_avg_yield", String(options.maxAvgYield));
+  }
+  if (options.createdAfter) {
+    query.set("created_after", options.createdAfter);
+  }
+  if (options.createdBefore) {
+    query.set("created_before", options.createdBefore);
+  }
   return apiRequest<SimulationListResponse>(`/api/simulations?${query.toString()}`);
 }
 
@@ -80,4 +114,12 @@ export async function clearSimulations(): Promise<void> {
   await apiRequest<void>("/api/simulations", {
     method: "DELETE",
   });
+}
+
+export async function listScenarios(): Promise<Scenario[]> {
+  return apiRequest<Scenario[]>("/api/scenarios");
+}
+
+export async function getYieldByRainfall(): Promise<YieldByRainfall> {
+  return apiRequest<YieldByRainfall>("/api/yield-by-rainfall");
 }

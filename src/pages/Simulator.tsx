@@ -43,6 +43,9 @@ const Simulator = () => {
     total: totalHistory,
     currentPage: historyPage,
     totalPages: historyTotalPages,
+    filters: historyFilters,
+    updateFilters: updateHistoryFilters,
+    resetFilters: resetHistoryFilters,
     comparisonSimulations,
     loadNextPage,
     loadPrevPage,
@@ -169,12 +172,14 @@ const Simulator = () => {
                 <SimulationResultsPanel
                   results={results}
                   aggregatedResults={aggregatedResults}
+                  isRunning={isRunning}
                 />
               ) : resultsView === "analytics" ? (
                 <AnalyticsDashboard
                   results={results}
                   config={config}
                   aggregatedResults={aggregatedResults}
+                  isRunning={isRunning}
                   savedSimulations={savedSimulations}
                   selectedForComparison={selectedForComparison}
                   comparisonSimulations={comparisonSimulations}
@@ -182,6 +187,9 @@ const Simulator = () => {
                   historyTotal={totalHistory}
                   historyPage={historyPage}
                   historyTotalPages={historyTotalPages}
+                  historyFilters={historyFilters}
+                  onUpdateHistoryFilters={updateHistoryFilters}
+                  onResetHistoryFilters={resetHistoryFilters}
                   onLoadNextPage={loadNextPage}
                   onLoadPrevPage={loadPrevPage}
                   onRefreshHistory={handleRefreshHistory}

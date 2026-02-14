@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { SavedSimulation, SCENARIOS, SimulationRun, SimulationConfig } from "@/types/simulation";
+import { SavedSimulation, SimulationRun, SimulationConfig } from "@/types/simulation";
 import {
   BarChart,
   Bar,
@@ -47,6 +47,15 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { useScenarioData } from "@/context/scenario-data";
+import type { HistoryFilters } from "@/hooks/useSimulationHistory";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface HistoricalComparisonProps {
   savedSimulations: SavedSimulation[];
@@ -56,6 +65,9 @@ interface HistoricalComparisonProps {
   totalCount: number;
   currentPage: number;
   totalPages: number;
+  filters: HistoryFilters;
+  onUpdateFilters: (patch: Partial<HistoryFilters>) => void;
+  onResetFilters: () => void;
   onLoadNextPage: () => void;
   onLoadPrevPage: () => void;
   onRefresh: () => void;
@@ -91,6 +103,9 @@ export function HistoricalComparison({
   totalCount,
   currentPage,
   totalPages,
+  filters,
+  onUpdateFilters,
+  onResetFilters,
   onLoadNextPage,
   onLoadPrevPage,
   onRefresh,
@@ -104,6 +119,7 @@ export function HistoricalComparison({
   onClearComparison,
   onClearHistory,
 }: HistoricalComparisonProps) {
+  const { scenarios } = useScenarioData();
   const [saveName, setSaveName] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
@@ -195,7 +211,7 @@ export function HistoricalComparison({
   // Timeline data for yield trends
   const timelineData = savedSimulations
     .slice()
-    .reverse()
+    .sort((a, b) => a.timestamp - b.timestamp)
     .map((sim, idx) => ({
       index: idx + 1,
       name: sim.name,
@@ -230,11 +246,12 @@ export function HistoricalComparison({
             <div className="mt-2 flex gap-2 flex-wrap text-xs text-muted-foreground">
               <span>
                 Scenario:{" "}
-                {SCENARIOS.find((s) => s.id === currentConfig.scenarioId)?.name}
+                {scenarios.find((s) => s.id === currentConfig.scenarioId)?.name ||
+                  `Scenario ${currentConfig.scenarioId}`}
               </span>
-              <span>•</span>
+              <span>-</span>
               <span>Avg: {currentAggregated.averageYield} t/ha</span>
-              <span>•</span>
+              <span>-</span>
               <span>Risk: {currentAggregated.lowYieldPercent}%</span>
             </div>
           </CardContent>
@@ -269,7 +286,7 @@ export function HistoricalComparison({
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>Clear all history?</AlertDialogTitle>
+                      <AlertDialogTitle>Clear all history</AlertDialogTitle>
                       <AlertDialogDescription>
                         This will permanently delete all saved simulations. This
                         action cannot be undone.
@@ -288,6 +305,112 @@ export function HistoricalComparison({
           </div>
         </CardHeader>
         <CardContent>
+          <div className="mb-4 flex flex-wrap items-end gap-2">
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-muted-foreground">Sort</span>
+              <Select
+                value={`${filters.sortBy}:${filters.sortOrder}`}
+                onValueChange={(value) => {
+                  const [sortBy, sortOrder] = value.split(":") as [
+                    HistoryFilters["sortBy"],
+                    HistoryFilters["sortOrder"],
+                  ];
+                  onUpdateFilters({ sortBy, sortOrder });
+                }}
+              >
+                <SelectTrigger className="h-8 w-[170px] text-xs">
+                  <SelectValue placeholder="Sort" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="created_at:desc">Newest first</SelectItem>
+                  <SelectItem value="created_at:asc">Oldest first</SelectItem>
+                  <SelectItem value="average_yield:desc">Yield high to low</SelectItem>
+                  <SelectItem value="average_yield:asc">Yield low to high</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-muted-foreground">Scenario</span>
+              <Select
+                value={filters.scenarioId === "all" ? "all" : String(filters.scenarioId)}
+                onValueChange={(value) =>
+                  onUpdateFilters({
+                    scenarioId:
+                      value === "all" ? "all" : (Number(value) as HistoryFilters["scenarioId"]),
+                  })
+                }
+              >
+                <SelectTrigger className="h-8 w-[170px] text-xs">
+                  <SelectValue placeholder="All scenarios" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All scenarios</SelectItem>
+                  {scenarios.map((scenario) => (
+                    <SelectItem key={scenario.id} value={String(scenario.id)}>
+                      {scenario.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-muted-foreground">Yield range</span>
+              <div className="flex gap-2">
+                <Input
+                  type="number"
+                  step="0.1"
+                  inputMode="decimal"
+                  placeholder="Min"
+                  aria-label="Minimum average yield"
+                  className="h-8 w-[80px] text-xs"
+                  value={filters.minAvgYield}
+                  onChange={(e) => onUpdateFilters({ minAvgYield: e.target.value })}
+                />
+                <Input
+                  type="number"
+                  step="0.1"
+                  inputMode="decimal"
+                  placeholder="Max"
+                  aria-label="Maximum average yield"
+                  className="h-8 w-[80px] text-xs"
+                  value={filters.maxAvgYield}
+                  onChange={(e) => onUpdateFilters({ maxAvgYield: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-muted-foreground">Date range</span>
+              <div className="flex gap-2">
+                <Input
+                  type="date"
+                  aria-label="Created after"
+                  className="h-8 text-xs"
+                  value={filters.createdAfter}
+                  onChange={(e) => onUpdateFilters({ createdAfter: e.target.value })}
+                />
+                <Input
+                  type="date"
+                  aria-label="Created before"
+                  className="h-8 text-xs"
+                  value={filters.createdBefore}
+                  onChange={(e) => onUpdateFilters({ createdBefore: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 text-xs"
+              onClick={onResetFilters}
+            >
+              Clear filters
+            </Button>
+          </div>
+
           {isLoading && savedSimulations.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <History className="w-10 h-10 mx-auto mb-2 opacity-50" />
@@ -357,7 +480,7 @@ export function HistoricalComparison({
                           <div className="flex items-center gap-2 text-xs text-muted-foreground">
                             <Clock className="w-3 h-3" />
                             {new Date(sim.timestamp).toLocaleDateString()}
-                            <span>•</span>
+                            <span>-</span>
                             <span>{sim.aggregatedResults.averageYield} t/ha</span>
                           </div>
                         </>

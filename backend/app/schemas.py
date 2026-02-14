@@ -36,6 +36,19 @@ class RainfallProbabilities(SchemaBase):
         return self
 
 
+class Scenario(SchemaBase):
+    id: int
+    name: str
+    description: str
+    default_probabilities: RainfallProbabilities
+
+
+class YieldByRainfall(SchemaBase):
+    low: float
+    normal: float
+    high: float
+
+
 class SeasonResultBase(SchemaBase):
     season_index: int = Field(ge=0)
     rainfall: RainfallLevel

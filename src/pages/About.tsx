@@ -8,11 +8,13 @@
    TableHeader,
    TableRow,
  } from "@/components/ui/table";
- import { SCENARIOS, YIELD_BY_RAINFALL } from "@/types/simulation";
- import { Droplets, Sun, CloudRain } from "lucide-react";
+import { Droplets, Sun, CloudRain } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useScenarioData } from "@/context/scenario-data";
  
- const About = () => {
-   return (
+const About = () => {
+  const { scenarios, yieldByRainfall, isLoading, error } = useScenarioData();
+  return (
      <div className="min-h-screen bg-background">
        <Navbar />
        
@@ -94,34 +96,61 @@
                    </TableRow>
                  </TableHeader>
                  <TableBody>
-                   <TableRow>
-                     <TableCell className="font-medium flex items-center gap-2">
-                       <Sun className="w-4 h-4 text-amber-500" />
-                       Low Rainfall
-                     </TableCell>
-                     <TableCell>Drought stress, reduced water availability</TableCell>
-                     <TableCell className="text-right font-mono">{YIELD_BY_RAINFALL.low}</TableCell>
-                   </TableRow>
-                   <TableRow>
-                     <TableCell className="font-medium flex items-center gap-2">
-                       <Droplets className="w-4 h-4 text-primary" />
-                       Normal Rainfall
-                     </TableCell>
-                     <TableCell>Optimal growing conditions</TableCell>
-                     <TableCell className="text-right font-mono">{YIELD_BY_RAINFALL.normal}</TableCell>
-                   </TableRow>
-                   <TableRow>
-                     <TableCell className="font-medium flex items-center gap-2">
-                       <CloudRain className="w-4 h-4 text-blue-500" />
-                       High Rainfall
-                     </TableCell>
-                     <TableCell>Excess water, potential flooding/waterlogging</TableCell>
-                     <TableCell className="text-right font-mono">{YIELD_BY_RAINFALL.high}</TableCell>
-                   </TableRow>
-                 </TableBody>
-               </Table>
-             </CardContent>
-           </Card>
+                  <TableRow>
+                    <TableCell className="font-medium flex items-center gap-2">
+                      <Sun className="w-4 h-4 text-amber-500" />
+                      Low Rainfall
+                    </TableCell>
+                    <TableCell>Drought stress, reduced water availability</TableCell>
+                    <TableCell className="text-right font-mono">
+                      {yieldByRainfall ? (
+                        yieldByRainfall.low
+                      ) : isLoading ? (
+                        <Skeleton className="h-4 w-10 ml-auto" />
+                      ) : (
+                        "-"
+                      )}
+                    </TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-medium flex items-center gap-2">
+                      <Droplets className="w-4 h-4 text-primary" />
+                      Normal Rainfall
+                    </TableCell>
+                    <TableCell>Optimal growing conditions</TableCell>
+                    <TableCell className="text-right font-mono">
+                      {yieldByRainfall ? (
+                        yieldByRainfall.normal
+                      ) : isLoading ? (
+                        <Skeleton className="h-4 w-10 ml-auto" />
+                      ) : (
+                        "-"
+                      )}
+                    </TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-medium flex items-center gap-2">
+                      <CloudRain className="w-4 h-4 text-blue-500" />
+                      High Rainfall
+                    </TableCell>
+                    <TableCell>Excess water, potential flooding/waterlogging</TableCell>
+                    <TableCell className="text-right font-mono">
+                      {yieldByRainfall ? (
+                        yieldByRainfall.high
+                      ) : isLoading ? (
+                        <Skeleton className="h-4 w-10 ml-auto" />
+                      ) : (
+                        "-"
+                      )}
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+              {error && (
+                <p className="mt-2 text-xs text-destructive">{error}</p>
+              )}
+            </CardContent>
+          </Card>
  
            {/* Scenario Defaults */}
            <Card>
@@ -138,24 +167,44 @@
                      <TableHead className="text-right">High %</TableHead>
                    </TableRow>
                  </TableHeader>
-                 <TableBody>
-                   {SCENARIOS.map((scenario) => (
-                     <TableRow key={scenario.id}>
-                       <TableCell className="font-medium">{scenario.name}</TableCell>
-                       <TableCell className="text-right font-mono">
-                         {scenario.defaultProbabilities.low}
+                <TableBody>
+                  {isLoading && scenarios.length === 0 && (
+                    <>
+                      {Array.from({ length: 3 }).map((_, idx) => (
+                        <TableRow key={`scenario-skeleton-${idx}`}>
+                          <TableCell>
+                            <Skeleton className="h-4 w-40" />
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Skeleton className="h-4 w-10 ml-auto" />
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Skeleton className="h-4 w-10 ml-auto" />
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Skeleton className="h-4 w-10 ml-auto" />
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </>
+                  )}
+                  {scenarios.map((scenario) => (
+                    <TableRow key={scenario.id}>
+                      <TableCell className="font-medium">{scenario.name}</TableCell>
+                      <TableCell className="text-right font-mono">
+                        {scenario.defaultProbabilities.low}
                        </TableCell>
                        <TableCell className="text-right font-mono">
                          {scenario.defaultProbabilities.normal}
                        </TableCell>
                        <TableCell className="text-right font-mono">
                          {scenario.defaultProbabilities.high}
-                       </TableCell>
-                     </TableRow>
-                   ))}
-                 </TableBody>
-               </Table>
-             </CardContent>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
            </Card>
  
            {/* Metrics Explanation */}
@@ -225,7 +274,7 @@
        {/* Footer */}
        <footer className="py-8 border-t border-border bg-muted/20 mt-12">
          <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-           <p>Rice Yield Simulation Tool — Academic Research Application</p>
+          <p>Rice Yield Simulation Tool - Academic Research Application</p>
          </div>
        </footer>
      </div>

@@ -1,13 +1,40 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import type { SavedSimulation, SimulationSummary } from "@/types/simulation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import type { SavedSimulation, ScenarioId, SimulationSummary } from "@/types/simulation";
 import {
   clearSimulations as clearSimulationsApi,
   deleteSimulation as deleteSimulationApi,
   listSimulations,
   renameSimulation as renameSimulationApi,
 } from "@/lib/api";
+import { toast } from "@/hooks/use-toast";
 
 const DEFAULT_LIMIT = 10;
+
+export type HistoryFilters = {
+  sortBy: "created_at" | "average_yield";
+  sortOrder: "asc" | "desc";
+  scenarioId: "all" | ScenarioId;
+  minAvgYield: string;
+  maxAvgYield: string;
+  createdAfter: string;
+  createdBefore: string;
+};
+
+const DEFAULT_FILTERS: HistoryFilters = {
+  sortBy: "created_at",
+  sortOrder: "desc",
+  scenarioId: "all",
+  minAvgYield: "",
+  maxAvgYield: "",
+  createdAfter: "",
+  createdBefore: "",
+};
 
 function mapSummaryToSaved(summary: SimulationSummary): SavedSimulation {
   const timestamp = Number.isNaN(Date.parse(summary.createdAt))
@@ -28,15 +55,71 @@ function mapSummaryToSaved(summary: SimulationSummary): SavedSimulation {
   };
 }
 
+type SimulationPage = {
+  items: SavedSimulation[];
+  total: number;
+  limit: number;
+  offset: number;
+};
+
+function parseOptionalNumber(value: string): number | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  const parsed = Number(trimmed);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+async function fetchSimulations(
+  limit: number,
+  offset: number,
+  filters: HistoryFilters
+): Promise<SimulationPage> {
+  const response = await listSimulations(limit, offset, {
+    sortBy: filters.sortBy,
+    sortOrder: filters.sortOrder,
+    scenarioId: filters.scenarioId === "all" ? undefined : filters.scenarioId,
+    minAvgYield: parseOptionalNumber(filters.minAvgYield),
+    maxAvgYield: parseOptionalNumber(filters.maxAvgYield),
+    createdAfter: filters.createdAfter || undefined,
+    createdBefore: filters.createdBefore || undefined,
+  });
+  return {
+    ...response,
+    items: response.items.map(mapSummaryToSaved),
+  };
+}
+
 export function useSimulationHistory() {
-  const [savedSimulations, setSavedSimulations] = useState<SavedSimulation[]>([]);
+  const queryClient = useQueryClient();
   const [selectedForComparison, setSelectedForComparison] = useState<string[]>([]);
   const [comparisonMap, setComparisonMap] = useState<Record<string, SavedSimulation>>({});
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [limit, setLimit] = useState(DEFAULT_LIMIT);
   const [offset, setOffset] = useState(0);
-  const [total, setTotal] = useState(0);
+  const [mutationError, setMutationError] = useState<string | null>(null);
+  const [filters, setFilters] = useState<HistoryFilters>(DEFAULT_FILTERS);
+  const lastQueryErrorRef = useRef<string | null>(null);
+
+  const {
+    data,
+    error: queryError,
+    isLoading: isQueryLoading,
+    isFetching,
+    refetch,
+  } = useQuery({
+    queryKey: ["simulations", limit, offset, filters],
+    queryFn: () => fetchSimulations(limit, offset, filters),
+    placeholderData: keepPreviousData,
+    staleTime: 30_000,
+  });
+
+  const savedSimulations = data?.items ?? [];
+  const total = data?.total ?? 0;
+
+  const queryErrorMessage =
+    queryError instanceof Error ? queryError.message : null;
+  const error = mutationError || queryErrorMessage;
 
   const totalPages = useMemo(() => {
     return Math.max(1, Math.ceil(total / limit));
@@ -46,27 +129,37 @@ export function useSimulationHistory() {
     return Math.floor(offset / limit) + 1;
   }, [limit, offset]);
 
-  const fetchPage = useCallback(async (nextOffset: number, nextLimit: number) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const response = await listSimulations(nextLimit, nextOffset);
-      const mapped = response.items.map(mapSummaryToSaved);
-      setSavedSimulations(mapped);
-      setLimit(response.limit);
-      setOffset(response.offset);
-      setTotal(response.total);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to load history";
-      setError(message);
-    } finally {
-      setIsLoading(false);
+  useEffect(() => {
+    if (!data || isFetching) {
+      return;
     }
-  }, []);
+    if (data.limit !== limit) {
+      setLimit(data.limit);
+    }
+    if (data.offset !== offset) {
+      setOffset(data.offset);
+    }
+  }, [data, isFetching, limit, offset]);
 
   useEffect(() => {
-    fetchPage(0, DEFAULT_LIMIT);
-  }, [fetchPage]);
+    setOffset(0);
+  }, [filters]);
+
+  useEffect(() => {
+    if (!queryErrorMessage) {
+      lastQueryErrorRef.current = null;
+      return;
+    }
+    if (lastQueryErrorRef.current === queryErrorMessage) {
+      return;
+    }
+    lastQueryErrorRef.current = queryErrorMessage;
+    toast({
+      variant: "destructive",
+      title: "Failed to load history",
+      description: queryErrorMessage,
+    });
+  }, [queryErrorMessage]);
 
   useEffect(() => {
     if (selectedForComparison.length === 0) {
@@ -86,47 +179,116 @@ export function useSimulationHistory() {
   }, [savedSimulations, selectedForComparison]);
 
   const refreshHistory = useCallback(() => {
-    return fetchPage(offset, limit);
-  }, [fetchPage, limit, offset]);
+    return refetch();
+  }, [refetch]);
+
+  const updateFilters = useCallback((patch: Partial<HistoryFilters>) => {
+    setFilters((prev) => ({ ...prev, ...patch }));
+  }, []);
+
+  const resetFilters = useCallback(() => {
+    setFilters({ ...DEFAULT_FILTERS });
+  }, []);
 
   const loadNextPage = useCallback(() => {
     const nextOffset = offset + limit;
     if (nextOffset >= total) {
       return;
     }
-    fetchPage(nextOffset, limit);
-  }, [fetchPage, limit, offset, total]);
+    setOffset(nextOffset);
+  }, [limit, offset, total]);
 
   const loadPrevPage = useCallback(() => {
     const nextOffset = Math.max(0, offset - limit);
-    fetchPage(nextOffset, limit);
-  }, [fetchPage, limit, offset]);
+    setOffset(nextOffset);
+  }, [limit, offset]);
 
-  const renameSimulation = useCallback(async (id: string, newName: string) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const updated = await renameSimulationApi(id, newName);
-      setSavedSimulations((prev) =>
-        prev.map((sim) =>
-          sim.id === id ? { ...sim, name: updated.name } : sim
-        )
-      );
+  const renameMutation = useMutation({
+    mutationFn: ({ id, name }: { id: string; name: string }) =>
+      renameSimulationApi(id, name),
+    onMutate: () => {
+      setMutationError(null);
+    },
+    onSuccess: (updated, variables) => {
       setComparisonMap((prev) =>
-        prev[id] ? { ...prev, [id]: { ...prev[id], name: updated.name } } : prev
+        prev[variables.id]
+          ? { ...prev, [variables.id]: { ...prev[variables.id], name: updated.name } }
+          : prev
       );
-    } catch (err) {
+    },
+    onError: (err) => {
       const message = err instanceof Error ? err.message : "Rename failed";
-      setError(message);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+      setMutationError(message);
+      toast({
+        variant: "destructive",
+        title: "Rename failed",
+        description: message,
+      });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["simulations"] });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteSimulationApi(id),
+    onMutate: () => {
+      setMutationError(null);
+    },
+    onError: (err) => {
+      const message = err instanceof Error ? err.message : "Delete failed";
+      setMutationError(message);
+      toast({
+        variant: "destructive",
+        title: "Delete failed",
+        description: message,
+      });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["simulations"] });
+    },
+  });
+
+  const clearMutation = useMutation({
+    mutationFn: () => clearSimulationsApi(),
+    onMutate: () => {
+      setMutationError(null);
+    },
+    onError: (err) => {
+      const message = err instanceof Error ? err.message : "Failed to clear history";
+      setMutationError(message);
+      toast({
+        variant: "destructive",
+        title: "Clear history failed",
+        description: message,
+      });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["simulations"] });
+    },
+  });
+
+  const renameSimulation = useCallback(
+    async (id: string, newName: string) => {
+      try {
+        await renameMutation.mutateAsync({ id, name: newName });
+      } catch {
+        // errors handled in mutation
+      }
+    },
+    [renameMutation]
+  );
 
   const saveSimulation = useCallback(
     async (id: string | null, name: string) => {
       if (!id) {
-        setError("Run a simulation before saving.");
+        const message = "Run a simulation before saving.";
+        setMutationError(message);
+        toast({
+          variant: "destructive",
+          title: "Save failed",
+          description: message,
+        });
         return;
       }
       await renameSimulation(id, name);
@@ -135,51 +297,39 @@ export function useSimulationHistory() {
     [refreshHistory, renameSimulation]
   );
 
-  const deleteSimulation = useCallback(async (id: string) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      await deleteSimulationApi(id);
-      setSavedSimulations((prev) => prev.filter((sim) => sim.id !== id));
-      setSelectedForComparison((prev) => prev.filter((sid) => sid !== id));
-      setComparisonMap((prev) => {
-        if (!prev[id]) {
-          return prev;
+  const deleteSimulation = useCallback(
+    async (id: string) => {
+      try {
+        await deleteMutation.mutateAsync(id);
+        setSelectedForComparison((prev) => prev.filter((sid) => sid !== id));
+        setComparisonMap((prev) => {
+          if (!prev[id]) {
+            return prev;
+          }
+          const next = { ...prev };
+          delete next[id];
+          return next;
+        });
+        if (savedSimulations.length === 1 && offset > 0) {
+          setOffset(Math.max(0, offset - limit));
         }
-        const next = { ...prev };
-        delete next[id];
-        return next;
-      });
-      setTotal((prev) => Math.max(0, prev - 1));
-      if (savedSimulations.length === 1 && offset > 0) {
-        const nextOffset = Math.max(0, offset - limit);
-        fetchPage(nextOffset, limit);
+      } catch {
+        // errors handled in mutation
       }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Delete failed";
-      setError(message);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [fetchPage, limit, offset, savedSimulations.length]);
+    },
+    [deleteMutation, limit, offset, savedSimulations.length]
+  );
 
   const clearHistory = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
     try {
-      await clearSimulationsApi();
-      setSavedSimulations([]);
+      await clearMutation.mutateAsync();
       setSelectedForComparison([]);
       setComparisonMap({});
-      setTotal(0);
       setOffset(0);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to clear history";
-      setError(message);
-    } finally {
-      setIsLoading(false);
+    } catch {
+      // errors handled in mutation
     }
-  }, []);
+  }, [clearMutation]);
 
   const toggleComparison = useCallback((id: string) => {
     setSelectedForComparison((prev) => {
@@ -229,6 +379,13 @@ export function useSimulationHistory() {
     return comparisonSimulations;
   }, [comparisonSimulations]);
 
+  const isLoading =
+    isQueryLoading ||
+    isFetching ||
+    renameMutation.isPending ||
+    deleteMutation.isPending ||
+    clearMutation.isPending;
+
   return {
     savedSimulations,
     selectedForComparison,
@@ -239,6 +396,9 @@ export function useSimulationHistory() {
     total,
     currentPage,
     totalPages,
+    filters,
+    updateFilters,
+    resetFilters,
     comparisonSimulations,
     refreshHistory,
     loadNextPage,
