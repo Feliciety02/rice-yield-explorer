@@ -67,6 +67,13 @@ const About = () => {
                  <li>Yield is calculated using the rainfall-yield mapping function</li>
                  <li>Results are aggregated across all seasons and replications</li>
                </ol>
+
+               <h4 className="font-semibold text-foreground mt-6">Model Assumptions (Short)</h4>
+               <ul className="list-disc list-inside space-y-2 ml-4">
+                 <li>Rainfall is sampled from a categorical distribution using your low/normal/high probabilities.</li>
+                 <li>Yield for each season is derived from a fixed rainfall→yield mapping per scenario.</li>
+                 <li>Non-rainfall factors (soil, variety, management) are held constant.</li>
+               </ul>
                
                <h4 className="font-semibold text-foreground mt-6">Key Assumptions</h4>
                <ul className="list-disc list-inside space-y-2 ml-4">
@@ -257,8 +264,8 @@ const About = () => {
                  specify a seed value to replicate exact results.
                </p>
                <p>
-                 <strong>Browser-Based:</strong> All computations run entirely in the 
-                 browser using JavaScript. No data is sent to external servers.
+                 <strong>Backend-Driven:</strong> Simulations run in the FastAPI service and
+                 results are stored locally in SQLite during development.
                </p>
                <p>
                  <strong>Limitations:</strong> This is a simplified model for educational 

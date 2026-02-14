@@ -11,6 +11,7 @@
    SelectValue,
  } from "@/components/ui/select";
 import { RainfallProbabilities, ScenarioId } from "@/types/simulation";
+import { toast } from "@/hooks/use-toast";
 import { useScenarioData } from "@/context/scenario-data";
  import { Play, RotateCcw, Layers } from "lucide-react";
  
@@ -32,6 +33,15 @@ import { useScenarioData } from "@/context/scenario-data";
    isRunning: boolean;
  }
  
+const MIN_SEASONS = 1;
+const MAX_SEASONS = 50;
+const MIN_REPLICATIONS = 1;
+const MAX_REPLICATIONS = 100;
+
+function clampInt(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, Math.round(value)));
+}
+
 export function SimulationInputPanel({
    scenarioId,
    numSeasons,
@@ -52,6 +62,52 @@ export function SimulationInputPanel({
   const { scenarios, isLoading, error } = useScenarioData();
   const currentScenario = scenarios.find((s) => s.id === scenarioId);
   const inputsDisabled = isLoading || scenarios.length === 0;
+
+  const handleClampedInput = (
+    label: string,
+    value: string,
+    min: number,
+    max: number,
+    onChange: (next: number) => void
+  ) => {
+    if (!value) {
+      onChange(min);
+      return;
+    }
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) {
+      return;
+    }
+    const clamped = clampInt(parsed, min, max);
+    if (clamped !== parsed) {
+      toast({
+        variant: "destructive",
+        title: `${label} out of range`,
+        description: `Adjusted to ${clamped}. Allowed range: ${min}-${max}.`,
+      });
+    }
+    onChange(clamped);
+  };
+
+  const handleSeedChange = (value: string) => {
+    if (!value) {
+      onSeedChange(undefined);
+      return;
+    }
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) {
+      return;
+    }
+    const clamped = Math.max(0, Math.round(parsed));
+    if (clamped !== parsed) {
+      toast({
+        variant: "destructive",
+        title: "Seed must be non-negative",
+        description: `Adjusted to ${clamped}.`,
+      });
+    }
+    onSeedChange(clamped);
+  };
  
    const handleProbabilityChange = (
      key: keyof RainfallProbabilities,
@@ -124,29 +180,55 @@ export function SimulationInputPanel({
          {/* Number of Seasons */}
          <div className="space-y-2">
            <Label htmlFor="seasons">Number of Seasons</Label>
-          <Input
+         <Input
             id="seasons"
             type="number"
-            min={1}
-            max={50}
+            min={MIN_SEASONS}
+            max={MAX_SEASONS}
+            step={1}
+            inputMode="numeric"
             value={numSeasons}
-            onChange={(e) => onNumSeasonsChange(Number(e.target.value))}
+            onChange={(e) =>
+              handleClampedInput(
+                "Number of seasons",
+                e.target.value,
+                MIN_SEASONS,
+                MAX_SEASONS,
+                onNumSeasonsChange
+              )
+            }
             disabled={inputsDisabled}
           />
+          <p className="text-xs text-muted-foreground">
+            Range: {MIN_SEASONS}-{MAX_SEASONS}
+          </p>
         </div>
  
          {/* Number of Replications */}
          <div className="space-y-2">
            <Label htmlFor="replications">Number of Replications</Label>
-          <Input
+         <Input
             id="replications"
             type="number"
-            min={1}
-            max={100}
+            min={MIN_REPLICATIONS}
+            max={MAX_REPLICATIONS}
+            step={1}
+            inputMode="numeric"
             value={numReplications}
-            onChange={(e) => onNumReplicationsChange(Number(e.target.value))}
+            onChange={(e) =>
+              handleClampedInput(
+                "Number of replications",
+                e.target.value,
+                MIN_REPLICATIONS,
+                MAX_REPLICATIONS,
+                onNumReplicationsChange
+              )
+            }
             disabled={inputsDisabled}
           />
+          <p className="text-xs text-muted-foreground">
+            Range: {MIN_REPLICATIONS}-{MAX_REPLICATIONS}
+          </p>
         </div>
  
          {/* Probability Editor */}
@@ -242,14 +324,12 @@ export function SimulationInputPanel({
          {/* Random Seed */}
          <div className="space-y-2">
            <Label htmlFor="seed">Random Seed (optional)</Label>
-          <Input
+         <Input
             id="seed"
             type="number"
             placeholder="Leave empty for random"
             value={seed ?? ""}
-            onChange={(e) =>
-              onSeedChange(e.target.value ? Number(e.target.value) : undefined)
-            }
+            onChange={(e) => handleSeedChange(e.target.value)}
             disabled={inputsDisabled}
           />
            <p className="text-xs text-muted-foreground">

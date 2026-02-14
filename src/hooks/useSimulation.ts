@@ -11,6 +11,32 @@ import { runSimulation as runSimulationApi } from "@/lib/api";
 import { useScenarioData } from "@/context/scenario-data";
 import { toast } from "@/hooks/use-toast";
 
+const MIN_SEASONS = 1;
+const MAX_SEASONS = 50;
+const MIN_REPLICATIONS = 1;
+const MAX_REPLICATIONS = 100;
+
+function clampInt(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, Math.round(value)));
+}
+
+function validateConfig(config: SimulationConfig): string | null {
+  if (config.numSeasons < MIN_SEASONS || config.numSeasons > MAX_SEASONS) {
+    return `Number of seasons must be between ${MIN_SEASONS} and ${MAX_SEASONS}.`;
+  }
+  if (config.numReplications < MIN_REPLICATIONS || config.numReplications > MAX_REPLICATIONS) {
+    return `Number of replications must be between ${MIN_REPLICATIONS} and ${MAX_REPLICATIONS}.`;
+  }
+  const sum =
+    config.probabilities.low +
+    config.probabilities.normal +
+    config.probabilities.high;
+  if (sum !== 100) {
+    return "Rainfall probabilities must sum to 100%.";
+  }
+  return null;
+}
+
 const STORAGE_KEY = "rice_yield_simulation_state";
 const STORAGE_VERSION = 1;
 
@@ -56,8 +82,12 @@ function normalizeConfig(value: unknown): SimulationConfig | null {
   }
   return {
     scenarioId: candidate.scenarioId as ScenarioId,
-    numSeasons: Math.max(1, Math.floor(candidate.numSeasons)),
-    numReplications: Math.max(1, Math.floor(candidate.numReplications)),
+    numSeasons: clampInt(Math.floor(candidate.numSeasons), MIN_SEASONS, MAX_SEASONS),
+    numReplications: clampInt(
+      Math.floor(candidate.numReplications),
+      MIN_REPLICATIONS,
+      MAX_REPLICATIONS
+    ),
     probabilities: {
       low: probs.low,
       normal: probs.normal,
@@ -282,18 +312,26 @@ export function useSimulation() {
   );
 
   const updateNumSeasons = useCallback((numSeasons: number) => {
-    setConfig((prev) => ({ ...prev, numSeasons: Math.max(1, numSeasons) }));
+    setConfig((prev) => ({
+      ...prev,
+      numSeasons: clampInt(numSeasons, MIN_SEASONS, MAX_SEASONS),
+    }));
   }, []);
 
   const updateNumReplications = useCallback((numReplications: number) => {
     setConfig((prev) => ({
       ...prev,
-      numReplications: Math.max(1, numReplications),
+      numReplications: clampInt(numReplications, MIN_REPLICATIONS, MAX_REPLICATIONS),
     }));
   }, []);
 
   const updateSeed = useCallback((seed: number | undefined) => {
-    setConfig((prev) => ({ ...prev, seed }));
+    if (seed === undefined) {
+      setConfig((prev) => ({ ...prev, seed: undefined }));
+      return;
+    }
+    const normalized = Number.isFinite(seed) ? Math.max(0, Math.round(seed)) : undefined;
+    setConfig((prev) => ({ ...prev, seed: normalized }));
   }, []);
 
   const applyPreset = useCallback(
@@ -322,6 +360,16 @@ export function useSimulation() {
   );
 
   const runSimulation = useCallback(async () => {
+    const validationError = validateConfig(config);
+    if (validationError) {
+      setError(validationError);
+      toast({
+        variant: "destructive",
+        title: "Check your inputs",
+        description: validationError,
+      });
+      return;
+    }
     setIsRunning(true);
     setError(null);
     setActiveSeasonIndex(0);
@@ -357,6 +405,16 @@ export function useSimulation() {
   }, [config]);
 
   const runAllScenarios = useCallback(async () => {
+    const validationError = validateConfig(config);
+    if (validationError) {
+      setError(validationError);
+      toast({
+        variant: "destructive",
+        title: "Check your inputs",
+        description: validationError,
+      });
+      return;
+    }
     setIsRunning(true);
     setError(null);
     setActiveSeasonIndex(0);

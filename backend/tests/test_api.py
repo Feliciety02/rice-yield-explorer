@@ -28,6 +28,47 @@ def _run_payload() -> dict[str, object]:
     }
 
 
+def _create_payload(
+    simulation_id: str,
+    name: str,
+    scenario_id: int,
+    average_yield: float,
+) -> dict[str, object]:
+    return {
+        "id": simulation_id,
+        "name": name,
+        "runMode": "single",
+        "numSeasons": 1,
+        "numReplications": 1,
+        "averageYield": average_yield,
+        "minYield": average_yield,
+        "maxYield": average_yield,
+        "yieldVariability": "low",
+        "lowYieldPercent": 0,
+        "runs": [
+            {
+                "runIndex": 0,
+                "scenarioId": scenario_id,
+                "probLow": 0,
+                "probNormal": 100,
+                "probHigh": 0,
+                "averageYield": average_yield,
+                "minYield": average_yield,
+                "maxYield": average_yield,
+                "yieldVariability": "low",
+                "lowYieldPercent": 0,
+                "seasons": [
+                    {
+                        "seasonIndex": 0,
+                        "rainfall": "normal",
+                        "yield": average_yield,
+                    }
+                ],
+            }
+        ],
+    }
+
+
 def setup_function() -> None:
     client.delete("/api/simulations")
 
@@ -78,3 +119,55 @@ def test_clear_all_simulations() -> None:
     list_resp = client.get("/api/simulations?limit=10&offset=0")
     assert list_resp.status_code == 200
     assert list_resp.json()["total"] == 0
+
+
+def test_filters_and_sorting_for_simulations() -> None:
+    create_a = client.post(
+        "/api/simulations",
+        json=_create_payload("sim-a", "Simulation A", 1, 2.0),
+    )
+    assert create_a.status_code == 201
+
+    create_b = client.post(
+        "/api/simulations",
+        json=_create_payload("sim-b", "Simulation B", 2, 4.0),
+    )
+    assert create_b.status_code == 201
+
+    scenario_resp = client.get("/api/simulations?limit=10&offset=0&scenario_id=2")
+    assert scenario_resp.status_code == 200
+    scenario_data = scenario_resp.json()
+    assert scenario_data["total"] == 1
+    assert scenario_data["items"][0]["id"] == "sim-b"
+
+    min_yield_resp = client.get(
+        "/api/simulations?limit=10&offset=0&min_avg_yield=3.0"
+    )
+    assert min_yield_resp.status_code == 200
+    assert min_yield_resp.json()["items"][0]["id"] == "sim-b"
+
+    max_yield_resp = client.get(
+        "/api/simulations?limit=10&offset=0&max_avg_yield=3.0"
+    )
+    assert max_yield_resp.status_code == 200
+    assert max_yield_resp.json()["items"][0]["id"] == "sim-a"
+
+    sorted_resp = client.get(
+        "/api/simulations?limit=10&offset=0&sort_by=average_yield&sort_order=asc"
+    )
+    assert sorted_resp.status_code == 200
+    sorted_ids = [item["id"] for item in sorted_resp.json()["items"]]
+    assert sorted_ids[:2] == ["sim-a", "sim-b"]
+
+
+def test_list_scenarios_and_yield_mapping() -> None:
+    scenarios_resp = client.get("/api/scenarios")
+    assert scenarios_resp.status_code == 200
+    scenarios = scenarios_resp.json()
+    assert len(scenarios) >= 1
+    assert {"id", "name", "description", "defaultProbabilities"} <= set(scenarios[0].keys())
+
+    yield_resp = client.get("/api/yield-by-rainfall")
+    assert yield_resp.status_code == 200
+    mapping = yield_resp.json()
+    assert {"low", "normal", "high"} <= set(mapping.keys())

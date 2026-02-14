@@ -317,6 +317,33 @@ export function AnalyticsDashboard({
               <RainfallImpactChart results={results} />
               
               {results.length === 1 && <SeasonalTrendChart results={results} />}
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="rounded-lg border border-border bg-muted/30 p-4 text-xs text-muted-foreground">
+                  <h4 className="text-sm font-semibold text-foreground mb-2">Model Assumptions (Short)</h4>
+                  <p>
+                    Rainfall levels are sampled from a categorical distribution based on your
+                    low/normal/high probabilities, with seasons treated as independent events.
+                  </p>
+                  <p className="mt-2">
+                    Yields are derived from a fixed rainfall→yield mapping per scenario and remain
+                    deterministic for a given rainfall level.
+                  </p>
+                </div>
+                <div className="rounded-lg border border-border bg-primary/5 p-4 text-xs text-muted-foreground">
+                  <h4 className="text-sm font-semibold text-foreground mb-2">Interpretation Guidance</h4>
+                  <p className="text-foreground font-medium">You can conclude</p>
+                  <p>
+                    Relative risk between scenarios, expected yield ranges, and how variability
+                    shifts when probabilities change.
+                  </p>
+                  <p className="mt-2 text-foreground font-medium">You should not conclude</p>
+                  <p>
+                    Exact real-world yields or causal effects beyond rainfall. The model holds other
+                    factors constant and is intended for comparative insight, not field forecasts.
+                  </p>
+                </div>
+              </div>
             </TabsContent>
 
             <TabsContent value="distribution" className="mt-0 space-y-6">

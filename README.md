@@ -34,6 +34,11 @@ Backend runs on `http://localhost:8000`.
 - `DATABASE_URL` (optional): overrides the SQLite path.
 - `CORS_ORIGINS` (optional): comma-separated origins allowed for the frontend. Defaults to `http://localhost:8080`.
 
+## Model Assumptions (Short)
+- Rainfall per season is sampled from a categorical distribution defined by the low/normal/high probabilities.
+- Seasonal yield is derived from a fixed rainfall→yield mapping per scenario; other factors are held constant.
+- Results are meant for comparative insight, not precise field forecasts.
+
 ## Tests
 
 ### Backend
