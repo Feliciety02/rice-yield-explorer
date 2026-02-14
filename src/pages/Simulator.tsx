@@ -7,10 +7,11 @@ import { RiceFieldSimulationPanel } from "@/components/simulation/RiceFieldSimul
 import { SimulationResultsPanel } from "@/components/simulation/SimulationResultsPanel";
 import { AnalyticsDashboard } from "@/components/analytics/AnalyticsDashboard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart3, Table2 } from "lucide-react";
+import { BarChart3, Table2, BookOpen } from "lucide-react";
+import FarmerGuide from "@/components/FarmerGuide";
 
 const Simulator = () => {
-  const [resultsView, setResultsView] = useState<"summary" | "analytics">("summary");
+  const [resultsView, setResultsView] = useState<"summary" | "analytics" | "guide">("summary");
   
   const {
     config,
@@ -118,15 +119,19 @@ const Simulator = () => {
             <div className="space-y-2">
               {/* View Toggle */}
               <div className="flex items-center justify-end gap-2">
-                <Tabs value={resultsView} onValueChange={(v) => setResultsView(v as "summary" | "analytics")}>
+              <Tabs value={resultsView} onValueChange={(v) => setResultsView(v as "summary" | "analytics" | "guide")}>
                   <TabsList className="h-8">
-                    <TabsTrigger value="summary" className="text-xs h-7 px-3">
-                      <Table2 className="w-3.5 h-3.5 mr-1.5" />
+                    <TabsTrigger value="summary" className="text-xs h-7 px-2.5">
+                      <Table2 className="w-3.5 h-3.5 mr-1" />
                       Summary
                     </TabsTrigger>
-                    <TabsTrigger value="analytics" className="text-xs h-7 px-3">
-                      <BarChart3 className="w-3.5 h-3.5 mr-1.5" />
+                    <TabsTrigger value="analytics" className="text-xs h-7 px-2.5">
+                      <BarChart3 className="w-3.5 h-3.5 mr-1" />
                       Analytics
+                    </TabsTrigger>
+                    <TabsTrigger value="guide" className="text-xs h-7 px-2.5">
+                      <BookOpen className="w-3.5 h-3.5 mr-1" />
+                      Guide
                     </TabsTrigger>
                   </TabsList>
                 </Tabs>
@@ -138,7 +143,7 @@ const Simulator = () => {
                   results={results}
                   aggregatedResults={aggregatedResults}
                 />
-              ) : (
+              ) : resultsView === "analytics" ? (
                 <AnalyticsDashboard
                   results={results}
                   config={config}
@@ -152,6 +157,8 @@ const Simulator = () => {
                   onClearComparison={clearComparison}
                   onClearHistory={clearHistory}
                 />
+              ) : (
+                <FarmerGuide />
               )}
             </div>
           </div>
