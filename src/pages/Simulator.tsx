@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSimulation } from "@/hooks/useSimulation";
 import { useSimulationHistory } from "@/hooks/useSimulationHistory";
 import { Navbar } from "@/components/layout/Navbar";
@@ -18,6 +18,8 @@ const Simulator = () => {
     results,
     aggregatedResults,
     isRunning,
+    error: simulationError,
+    lastSimulationId,
     activeSeasonIndex,
     setActiveSeasonIndex,
     isPlaying,
@@ -36,6 +38,15 @@ const Simulator = () => {
   const {
     savedSimulations,
     selectedForComparison,
+    isLoading: isHistoryLoading,
+    error: historyError,
+    total: totalHistory,
+    currentPage: historyPage,
+    totalPages: historyTotalPages,
+    comparisonSimulations,
+    loadNextPage,
+    loadPrevPage,
+    refreshHistory,
     saveSimulation,
     deleteSimulation,
     renameSimulation,
@@ -61,9 +72,19 @@ const Simulator = () => {
 
   const handleSaveSimulation = (name: string) => {
     if (aggregatedResults) {
-      saveSimulation(name, config, results, aggregatedResults);
+      saveSimulation(lastSimulationId, name);
     }
   };
+
+  const handleRefreshHistory = () => {
+    refreshHistory();
+  };
+
+  useEffect(() => {
+    if (lastSimulationId) {
+      refreshHistory();
+    }
+  }, [lastSimulationId, refreshHistory]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -77,6 +98,12 @@ const Simulator = () => {
           <p className="text-muted-foreground mt-1">
             Configure rainfall scenarios and analyze yield outcomes
           </p>
+          {simulationError && (
+            <p className="mt-3 text-sm text-destructive">{simulationError}</p>
+          )}
+          {historyError && (
+            <p className="mt-1 text-sm text-destructive">{historyError}</p>
+          )}
         </div>
 
         <div className="grid lg:grid-cols-12 gap-6">
@@ -150,6 +177,14 @@ const Simulator = () => {
                   aggregatedResults={aggregatedResults}
                   savedSimulations={savedSimulations}
                   selectedForComparison={selectedForComparison}
+                  comparisonSimulations={comparisonSimulations}
+                  isHistoryLoading={isHistoryLoading}
+                  historyTotal={totalHistory}
+                  historyPage={historyPage}
+                  historyTotalPages={historyTotalPages}
+                  onLoadNextPage={loadNextPage}
+                  onLoadPrevPage={loadPrevPage}
+                  onRefreshHistory={handleRefreshHistory}
                   onSaveSimulation={handleSaveSimulation}
                   onDeleteSimulation={deleteSimulation}
                   onRenameSimulation={renameSimulation}

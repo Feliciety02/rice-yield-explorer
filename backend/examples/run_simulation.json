@@ -1,0 +1,9 @@
+{
+  "name": "Baseline run",
+  "runMode": "single",
+  "scenarioId": 1,
+  "numSeasons": 10,
+  "numReplications": 3,
+  "probabilities": { "low": 10, "normal": 80, "high": 10 },
+  "seed": 12345
+}

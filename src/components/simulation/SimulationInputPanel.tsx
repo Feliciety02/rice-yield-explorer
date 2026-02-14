@@ -239,23 +239,23 @@
  
          {/* Actions */}
          <div className="space-y-2 pt-4 border-t border-border">
-           <Button
-             className="w-full"
-             onClick={onRun}
-             disabled={isRunning}
-           >
-             <Play className="w-4 h-4 mr-2" />
-             Run Simulation
-           </Button>
-           <Button
-             variant="secondary"
-             className="w-full"
-             onClick={onRunAll}
-             disabled={isRunning}
-           >
-             <Layers className="w-4 h-4 mr-2" />
-             Compare All Scenarios
-           </Button>
+          <Button
+            className="w-full"
+            onClick={onRun}
+            disabled={isRunning}
+          >
+            <Play className="w-4 h-4 mr-2" />
+            {isRunning ? "Running..." : "Run Simulation"}
+          </Button>
+          <Button
+            variant="secondary"
+            className="w-full"
+            onClick={onRunAll}
+            disabled={isRunning}
+          >
+            <Layers className="w-4 h-4 mr-2" />
+            {isRunning ? "Running..." : "Compare All Scenarios"}
+          </Button>
            <Button
              variant="outline"
              className="w-full"

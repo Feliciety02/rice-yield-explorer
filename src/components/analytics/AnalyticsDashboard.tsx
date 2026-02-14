@@ -42,6 +42,14 @@ interface AnalyticsDashboardProps {
   // History props
   savedSimulations: SavedSimulation[];
   selectedForComparison: string[];
+  comparisonSimulations: SavedSimulation[];
+  isHistoryLoading: boolean;
+  historyTotal: number;
+  historyPage: number;
+  historyTotalPages: number;
+  onLoadNextPage: () => void;
+  onLoadPrevPage: () => void;
+  onRefreshHistory: () => void;
   onSaveSimulation: (name: string) => void;
   onDeleteSimulation: (id: string) => void;
   onRenameSimulation: (id: string, newName: string) => void;
@@ -56,6 +64,14 @@ export function AnalyticsDashboard({
   aggregatedResults,
   savedSimulations,
   selectedForComparison,
+  comparisonSimulations,
+  isHistoryLoading,
+  historyTotal,
+  historyPage,
+  historyTotalPages,
+  onLoadNextPage,
+  onLoadPrevPage,
+  onRefreshHistory,
   onSaveSimulation,
   onDeleteSimulation,
   onRenameSimulation,
@@ -259,9 +275,17 @@ export function AnalyticsDashboard({
               <HistoricalComparison
                 savedSimulations={savedSimulations}
                 selectedForComparison={selectedForComparison}
+                comparisonSimulations={comparisonSimulations}
                 currentResults={results}
                 currentConfig={config}
                 currentAggregated={aggregatedResults}
+                isLoading={isHistoryLoading}
+                totalCount={historyTotal}
+                currentPage={historyPage}
+                totalPages={historyTotalPages}
+                onLoadNextPage={onLoadNextPage}
+                onLoadPrevPage={onLoadPrevPage}
+                onRefresh={onRefreshHistory}
                 onSave={onSaveSimulation}
                 onDelete={onDeleteSimulation}
                 onRename={onRenameSimulation}

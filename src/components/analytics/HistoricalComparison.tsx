@@ -51,6 +51,14 @@ import {
 interface HistoricalComparisonProps {
   savedSimulations: SavedSimulation[];
   selectedForComparison: string[];
+  comparisonSimulations: SavedSimulation[];
+  isLoading: boolean;
+  totalCount: number;
+  currentPage: number;
+  totalPages: number;
+  onLoadNextPage: () => void;
+  onLoadPrevPage: () => void;
+  onRefresh: () => void;
   currentResults: SimulationRun[];
   currentConfig: SimulationConfig;
   currentAggregated: {
@@ -78,6 +86,14 @@ const CHART_COLORS = [
 export function HistoricalComparison({
   savedSimulations,
   selectedForComparison,
+  comparisonSimulations,
+  isLoading,
+  totalCount,
+  currentPage,
+  totalPages,
+  onLoadNextPage,
+  onLoadPrevPage,
+  onRefresh,
   currentResults,
   currentConfig,
   currentAggregated,
@@ -91,10 +107,6 @@ export function HistoricalComparison({
   const [saveName, setSaveName] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
-
-  const comparisonSimulations = savedSimulations.filter((s) =>
-    selectedForComparison.includes(s.id)
-  );
 
   const handleSave = () => {
     if (saveName.trim() && currentResults.length > 0) {
@@ -211,7 +223,7 @@ export function HistoricalComparison({
                 onKeyDown={(e) => e.key === "Enter" && handleSave()}
                 className="flex-1"
               />
-              <Button onClick={handleSave} disabled={!saveName.trim()}>
+              <Button onClick={handleSave} disabled={!saveName.trim() || isLoading}>
                 Save
               </Button>
             </div>
@@ -235,37 +247,53 @@ export function HistoricalComparison({
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm flex items-center gap-2">
               <History className="w-4 h-4" />
-              Saved Simulations ({savedSimulations.length})
+              Saved Simulations ({totalCount})
             </CardTitle>
-            {savedSimulations.length > 0 && (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-7 text-xs">
-                    <Trash2 className="w-3 h-3 mr-1" />
-                    Clear All
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Clear all history?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This will permanently delete all saved simulations. This
-                      action cannot be undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={onClearHistory}>
-                      Delete All
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            )}
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={onRefresh}
+                disabled={isLoading}
+              >
+                Refresh
+              </Button>
+              {totalCount > 0 && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-7 text-xs">
+                      <Trash2 className="w-3 h-3 mr-1" />
+                      Clear All
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Clear all history?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will permanently delete all saved simulations. This
+                        action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={onClearHistory}>
+                        Delete All
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent>
-          {savedSimulations.length === 0 ? (
+          {isLoading && savedSimulations.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <History className="w-10 h-10 mx-auto mb-2 opacity-50" />
+              <p className="text-sm">Loading saved simulations...</p>
+            </div>
+          ) : savedSimulations.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <History className="w-10 h-10 mx-auto mb-2 opacity-50" />
               <p className="text-sm">No saved simulations yet</p>
@@ -359,6 +387,34 @@ export function HistoricalComparison({
                 ))}
               </div>
             </ScrollArea>
+          )}
+          {totalPages > 1 && (
+            <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={onLoadPrevPage}
+                disabled={currentPage <= 1 || isLoading}
+              >
+                Previous
+              </Button>
+              <span>
+                Page {currentPage} of {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={onLoadNextPage}
+                disabled={currentPage >= totalPages || isLoading}
+              >
+                Next
+              </Button>
+            </div>
+          )}
+          {isLoading && savedSimulations.length > 0 && (
+            <p className="mt-2 text-xs text-muted-foreground">Updating history...</p>
           )}
         </CardContent>
       </Card>
@@ -580,7 +636,7 @@ export function HistoricalComparison({
               </ResponsiveContainer>
             </div>
             <p className="text-xs text-center text-muted-foreground mt-2">
-              Average yield across {savedSimulations.length} saved simulations
+              Average yield across {savedSimulations.length} loaded simulations
             </p>
           </CardContent>
         </Card>
