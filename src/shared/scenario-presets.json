@@ -1,0 +1,37 @@
+﻿[
+  {
+    "id": 1,
+    "key": "balanced",
+    "name": "Balanced",
+    "description": "Balanced rainfall mix with near-equal chances of low, normal, and high rainfall.",
+    "probabilities": { "low": 0.33, "normal": 0.34, "high": 0.33 }
+  },
+  {
+    "id": 2,
+    "key": "drought",
+    "name": "Drought Leaning",
+    "description": "Higher chance of low rainfall to simulate drought-leaning seasons.",
+    "probabilities": { "low": 0.6, "normal": 0.3, "high": 0.1 }
+  },
+  {
+    "id": 3,
+    "key": "flood",
+    "name": "Flood Leaning",
+    "description": "Higher chance of high rainfall to model flood-leaning seasons.",
+    "probabilities": { "low": 0.1, "normal": 0.3, "high": 0.6 }
+  },
+  {
+    "id": 4,
+    "key": "normal_rainfall",
+    "name": "Normal Rainfall Baseline",
+    "description": "Mostly normal rainfall with modest low and high tails.",
+    "probabilities": { "low": 0.1, "normal": 0.6, "high": 0.3 }
+  },
+  {
+    "id": 5,
+    "key": "random",
+    "name": "Randomized Mix",
+    "description": "Randomized mix generated from the seed (or randomly when no seed is provided).",
+    "probabilities": { "low": 0.33, "normal": 0.34, "high": 0.33 }
+  }
+]

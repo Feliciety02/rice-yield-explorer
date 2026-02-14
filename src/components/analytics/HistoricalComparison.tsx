@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { SavedSimulation, SimulationRun, SimulationConfig } from "@/types/simulation";
+import { AggregatedResults, SavedSimulation, SimulationRun, SimulationConfig } from "@/types/simulation";
 import {
   BarChart,
   Bar,
@@ -73,13 +73,7 @@ interface HistoricalComparisonProps {
   onRefresh: () => void;
   currentResults: SimulationRun[];
   currentConfig: SimulationConfig;
-  currentAggregated: {
-    averageYield: number;
-    minYield: number;
-    maxYield: number;
-    yieldVariability: "low" | "medium" | "high";
-    lowYieldPercent: number;
-  } | null;
+  currentAggregated: AggregatedResults | null;
   onSave: (name: string) => void;
   onDelete: (id: string) => void;
   onRename: (id: string, newName: string) => void;
@@ -246,8 +240,8 @@ export function HistoricalComparison({
             <div className="mt-2 flex gap-2 flex-wrap text-xs text-muted-foreground">
               <span>
                 Scenario:{" "}
-                {scenarios.find((s) => s.id === currentConfig.scenarioId)?.name ||
-                  `Scenario ${currentConfig.scenarioId}`}
+                {scenarios.find((s) => s.key === currentConfig.scenarioKey)?.name ||
+                  currentConfig.scenarioKey}
               </span>
               <span>-</span>
               <span>Avg: {currentAggregated.averageYield} t/ha</span>

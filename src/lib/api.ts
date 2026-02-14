@@ -1,8 +1,10 @@
 import type {
+  CompareRequest,
+  CompareResponse,
   Scenario,
-  SimulationExecuteRequest,
+  SimulateRequest,
+  SimulateResponse,
   SimulationListResponse,
-  SimulationResponse,
   SimulationSummary,
   YieldByRainfall,
 } from "@/types/simulation";
@@ -43,9 +45,18 @@ async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T
 }
 
 export async function runSimulation(
-  payload: SimulationExecuteRequest
-): Promise<SimulationResponse> {
-  return apiRequest<SimulationResponse>("/api/simulations/run", {
+  payload: SimulateRequest
+): Promise<SimulateResponse> {
+  return apiRequest<SimulateResponse>("/api/simulate", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function compareScenarios(
+  payload: CompareRequest
+): Promise<CompareResponse> {
+  return apiRequest<CompareResponse>("/api/compare", {
     method: "POST",
     body: JSON.stringify(payload),
   });

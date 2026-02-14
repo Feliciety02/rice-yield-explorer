@@ -10,28 +10,30 @@
    SelectTrigger,
    SelectValue,
  } from "@/components/ui/select";
-import { RainfallProbabilities, ScenarioId } from "@/types/simulation";
+import { RainfallProbabilities, ScenarioKey } from "@/types/simulation";
 import { toast } from "@/hooks/use-toast";
 import { useScenarioData } from "@/context/scenario-data";
  import { Play, RotateCcw, Layers } from "lucide-react";
  
- interface SimulationInputPanelProps {
-   scenarioId: ScenarioId;
-   numSeasons: number;
-   numReplications: number;
-   probabilities: RainfallProbabilities;
-   seed?: number;
-   onScenarioChange: (id: ScenarioId) => void;
-   onNumSeasonsChange: (n: number) => void;
-   onNumReplicationsChange: (n: number) => void;
-   onProbabilitiesChange: (p: RainfallProbabilities) => void;
-   onSeedChange: (seed: number | undefined) => void;
-   onPreset: (preset: "balanced" | "drought" | "flood" | "random") => void;
-   onRun: () => void;
-   onRunAll: () => void;
-   onReset: () => void;
-   isRunning: boolean;
- }
+interface SimulationInputPanelProps {
+  scenarioKey: ScenarioKey;
+  numSeasons: number;
+  numReplications: number;
+  probabilities: RainfallProbabilities;
+  seed?: string;
+  onScenarioChange: (key: ScenarioKey) => void;
+  onNumSeasonsChange: (n: number) => void;
+  onNumReplicationsChange: (n: number) => void;
+  onProbabilitiesChange: (p: RainfallProbabilities) => void;
+  onSeedChange: (seed: string | undefined) => void;
+  onPreset: (preset: "balanced" | "drought" | "flood" | "random") => void;
+  onRun: () => void;
+  onRunAll: () => void;
+  onReset: () => void;
+  isRunning: boolean;
+  validationError?: string | null;
+  isValid?: boolean;
+}
  
 const MIN_SEASONS = 1;
 const MAX_SEASONS = 50;
@@ -43,7 +45,7 @@ function clampInt(value: number, min: number, max: number): number {
 }
 
 export function SimulationInputPanel({
-   scenarioId,
+   scenarioKey,
    numSeasons,
    numReplications,
    probabilities,
@@ -58,9 +60,11 @@ export function SimulationInputPanel({
    onRunAll,
    onReset,
    isRunning,
+   validationError,
+   isValid = true,
 }: SimulationInputPanelProps) {
   const { scenarios, isLoading, error } = useScenarioData();
-  const currentScenario = scenarios.find((s) => s.id === scenarioId);
+  const currentScenario = scenarios.find((s) => s.key === scenarioKey);
   const inputsDisabled = isLoading || scenarios.length === 0;
 
   const handleClampedInput = (
@@ -90,23 +94,8 @@ export function SimulationInputPanel({
   };
 
   const handleSeedChange = (value: string) => {
-    if (!value) {
-      onSeedChange(undefined);
-      return;
-    }
-    const parsed = Number(value);
-    if (!Number.isFinite(parsed)) {
-      return;
-    }
-    const clamped = Math.max(0, Math.round(parsed));
-    if (clamped !== parsed) {
-      toast({
-        variant: "destructive",
-        title: "Seed must be non-negative",
-        description: `Adjusted to ${clamped}.`,
-      });
-    }
-    onSeedChange(clamped);
+    const trimmed = value.trim();
+    onSeedChange(trimmed ? trimmed : undefined);
   };
  
    const handleProbabilityChange = (
@@ -149,16 +138,17 @@ export function SimulationInputPanel({
         <div className="space-y-2">
           <Label htmlFor="scenario">Scenario</Label>
           <Select
-            value={String(scenarioId)}
-            onValueChange={(v) => onScenarioChange(Number(v) as ScenarioId)}
+            value={scenarioKey}
+            onValueChange={(v) => onScenarioChange(v as ScenarioKey)}
             disabled={inputsDisabled}
           >
             <SelectTrigger id="scenario">
               <SelectValue placeholder="Select scenario" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="custom">Custom</SelectItem>
               {scenarios.map((s) => (
-                <SelectItem key={s.id} value={String(s.id)}>
+                <SelectItem key={s.key} value={s.key}>
                   {s.name}
                 </SelectItem>
               ))}
@@ -170,6 +160,11 @@ export function SimulationInputPanel({
           {!isLoading && currentScenario && (
             <p className="text-sm text-muted-foreground">
               {currentScenario.description}
+            </p>
+          )}
+          {!isLoading && !currentScenario && scenarioKey === "custom" && (
+            <p className="text-sm text-muted-foreground">
+              Custom probabilities based on your slider inputs.
             </p>
           )}
           {error && (
@@ -326,7 +321,7 @@ export function SimulationInputPanel({
            <Label htmlFor="seed">Random Seed (optional)</Label>
          <Input
             id="seed"
-            type="number"
+            type="text"
             placeholder="Leave empty for random"
             value={seed ?? ""}
             onChange={(e) => handleSeedChange(e.target.value)}
@@ -342,7 +337,7 @@ export function SimulationInputPanel({
           <Button
             className="w-full"
             onClick={onRun}
-            disabled={isRunning || inputsDisabled}
+            disabled={isRunning || inputsDisabled || !isValid}
           >
             <Play className="w-4 h-4 mr-2" />
             {isRunning ? "Running..." : "Run Simulation"}
@@ -351,11 +346,14 @@ export function SimulationInputPanel({
             variant="secondary"
             className="w-full"
             onClick={onRunAll}
-            disabled={isRunning || inputsDisabled}
+            disabled={isRunning || inputsDisabled || !isValid}
           >
             <Layers className="w-4 h-4 mr-2" />
             {isRunning ? "Running..." : "Compare All Scenarios"}
           </Button>
+          {validationError && (
+            <p className="text-xs text-destructive text-center">{validationError}</p>
+          )}
           <Button
             variant="outline"
             className="w-full"

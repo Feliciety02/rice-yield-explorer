@@ -4,39 +4,9 @@ import time
 from typing import Callable, Iterable
 
 from .. import schemas
+from .presets import list_presets_for_api
 
-SCENARIOS: list[dict[str, object]] = [
-    {
-        "id": 1,
-        "name": "Normal Rainfall",
-        "description": "Baseline scenario with high probability of normal rainfall conditions throughout the growing season.",
-        "default_probabilities": {"low": 10, "normal": 80, "high": 10},
-    },
-    {
-        "id": 2,
-        "name": "Low Rainfall (Drought)",
-        "description": "Simulates drought conditions with significantly reduced rainfall, stressing rice crops.",
-        "default_probabilities": {"low": 70, "normal": 20, "high": 10},
-    },
-    {
-        "id": 3,
-        "name": "High Rainfall (Flood)",
-        "description": "Models excess rainfall leading to potential flooding and waterlogging of paddy fields.",
-        "default_probabilities": {"low": 10, "normal": 20, "high": 70},
-    },
-    {
-        "id": 4,
-        "name": "Variable Rainfall",
-        "description": "Unpredictable weather patterns with equal probability of all rainfall conditions.",
-        "default_probabilities": {"low": 33, "normal": 34, "high": 33},
-    },
-    {
-        "id": 5,
-        "name": "Early Planting Strategy",
-        "description": "Adaptive strategy where early planting increases probability of favorable growing conditions.",
-        "default_probabilities": {"low": 15, "normal": 70, "high": 15},
-    },
-]
+SCENARIOS: list[dict[str, object]] = list_presets_for_api()
 
 YIELD_BY_RAINFALL: dict[str, float] = {
     "low": 2.0,

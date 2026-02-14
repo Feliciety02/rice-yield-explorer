@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from . import crud, schemas
 from .db import Base, engine, get_db
 from .simulation.engine import SCENARIOS, YIELD_BY_RAINFALL, build_simulation_payload
+from .simulation import arena_engine
 
 Base.metadata.create_all(bind=engine)
 
@@ -55,6 +56,29 @@ def list_scenarios() -> list[schemas.Scenario]:
 @app.get("/api/yield-by-rainfall", response_model=schemas.YieldByRainfall)
 def get_yield_by_rainfall() -> schemas.YieldByRainfall:
     return schemas.YieldByRainfall.model_validate(YIELD_BY_RAINFALL)
+
+
+@app.post("/api/simulate", response_model=schemas.SimulateResponse)
+def simulate(payload: schemas.SimulateRequest) -> schemas.SimulateResponse:
+    result = arena_engine.simulate(
+        scenario=payload.scenario,
+        seasons=payload.seasons,
+        replications=payload.replications,
+        probabilities=payload.probabilities.model_dump(),
+        seed=payload.seed,
+        include_rows=bool(payload.include_rows),
+    )
+    return schemas.SimulateResponse.model_validate(result)
+
+
+@app.post("/api/compare", response_model=schemas.CompareResponse)
+def compare(payload: schemas.CompareRequest) -> schemas.CompareResponse:
+    result = arena_engine.compare(
+        seasons=payload.seasons,
+        replications=payload.replications,
+        seed=payload.seed,
+    )
+    return schemas.CompareResponse.model_validate(result)
 
 
 @app.post(

@@ -120,7 +120,7 @@ export function MonteCarloAnalysis({ results }: MonteCarloAnalysisProps) {
     ];
 
     const scenarioProbabilities: ScenarioProbability[] = results.map((r, idx) => {
-      const scenario = scenarios.find((s) => s.id === r.scenarioId);
+      const scenario = scenarios.find((s) => s.key === r.scenarioKey);
       const seasonYields = r.seasons.map((s) => s.yield);
       const avgYield = seasonYields.reduce((a, b) => a + b, 0) / seasonYields.length;
       
@@ -128,7 +128,7 @@ export function MonteCarloAnalysis({ results }: MonteCarloAnalysisProps) {
       const riskScore = r.lowYieldPercent / 100 + (r.yieldVariability === "high" ? 0.3 : r.yieldVariability === "medium" ? 0.15 : 0);
 
       return {
-        scenario: scenario?.name || `Scenario ${r.scenarioId}`,
+        scenario: scenario?.name || r.scenarioKey,
         probability: (1 / results.length) * 100,
         expectedYield: avgYield,
         riskScore: Math.min(riskScore, 1),

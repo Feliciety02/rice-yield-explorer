@@ -8,6 +8,7 @@ vi.mock("@/context/scenario-data", () => ({
     scenarios: [
       {
         id: 1,
+        key: "balanced",
         name: "Scenario 1",
         description: "Test scenario",
         defaultProbabilities: { low: 0, normal: 100, high: 0 },
@@ -33,7 +34,7 @@ describe("SimulationInputPanel validation", () => {
 
     render(
       <SimulationInputPanel
-        scenarioId={1}
+        scenarioKey="balanced"
         numSeasons={10}
         numReplications={1}
         probabilities={probabilities}
@@ -64,12 +65,12 @@ describe("SimulationInputPanel validation", () => {
     expect(toastSpy).toHaveBeenCalled();
   });
 
-  it("normalizes negative seeds", () => {
+  it("trims seed input", () => {
     const onSeedChange = vi.fn();
 
     render(
       <SimulationInputPanel
-        scenarioId={1}
+        scenarioKey="balanced"
         numSeasons={10}
         numReplications={1}
         probabilities={probabilities}
@@ -88,9 +89,8 @@ describe("SimulationInputPanel validation", () => {
     );
 
     fireEvent.change(screen.getByLabelText("Random Seed (optional)"), {
-      target: { value: "-42" },
+      target: { value: "  seed-42  " },
     });
-    expect(onSeedChange).toHaveBeenCalledWith(0);
-    expect(toastSpy).toHaveBeenCalled();
+    expect(onSeedChange).toHaveBeenCalledWith("seed-42");
   });
 });

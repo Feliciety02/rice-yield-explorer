@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ScenarioDataProvider } from "@/context/scenario-data";
 import Index from "./pages/Index";
 import Simulator from "./pages/Simulator";
+import Model from "./pages/Model";
 import About from "./pages/About";
 import NotFound from "./pages/NotFound";
 
@@ -23,6 +24,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/simulator" element={<Simulator />} />
+            <Route path="/model" element={<Model />} />
             <Route path="/about" element={<About />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

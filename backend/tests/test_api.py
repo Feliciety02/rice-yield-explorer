@@ -165,9 +165,59 @@ def test_list_scenarios_and_yield_mapping() -> None:
     assert scenarios_resp.status_code == 200
     scenarios = scenarios_resp.json()
     assert len(scenarios) >= 1
-    assert {"id", "name", "description", "defaultProbabilities"} <= set(scenarios[0].keys())
+    assert {
+        "id",
+        "key",
+        "name",
+        "description",
+        "defaultProbabilities",
+    } <= set(scenarios[0].keys())
 
     yield_resp = client.get("/api/yield-by-rainfall")
     assert yield_resp.status_code == 200
     mapping = yield_resp.json()
     assert {"low", "normal", "high"} <= set(mapping.keys())
+
+
+def test_simulate_endpoint() -> None:
+    payload = {
+        "scenario": "custom",
+        "seasons": 4,
+        "replications": 2,
+        "probabilities": {"low": 0.2, "normal": 0.5, "high": 0.3},
+        "seed": "api-seed",
+        "includeRows": True,
+    }
+    resp = client.post("/api/simulate", json=payload)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["seasons"] == 4
+    assert data["replications"] == 2
+    assert "overall" in data
+    assert len(data["replicationResults"]) == 2
+    assert len(data.get("rows", [])) == 8
+
+
+def test_compare_endpoint() -> None:
+    resp = client.post(
+        "/api/compare",
+        json={"seasons": 3, "replications": 1, "seed": "compare-seed"},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["seasons"] == 3
+    assert data["replications"] == 1
+    assert len(data["scenarios"]) == 5
+
+
+def test_simulate_rejects_invalid_probabilities() -> None:
+    resp = client.post(
+        "/api/simulate",
+        json={
+            "scenario": "custom",
+            "seasons": 3,
+            "replications": 1,
+            "probabilities": {"low": 0.2, "normal": 0.2, "high": 0.2},
+        },
+    )
+    assert resp.status_code == 422

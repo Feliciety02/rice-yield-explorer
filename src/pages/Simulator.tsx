@@ -11,14 +11,19 @@ import { BarChart3, Table2, BookOpen } from "lucide-react";
 import FarmerGuide from "@/components/FarmerGuide";
 
 const Simulator = () => {
-  const [resultsView, setResultsView] = useState<"summary" | "analytics" | "guide">("summary");
+  const [resultsView, setResultsView] = useState<
+    "summary" | "analytics" | "guide"
+  >("summary");
   
   const {
     config,
     results,
     aggregatedResults,
+    replicationResults,
+    comparisonResults,
     isRunning,
     error: simulationError,
+    validationError,
     lastSimulationId,
     activeSeasonIndex,
     setActiveSeasonIndex,
@@ -113,7 +118,7 @@ const Simulator = () => {
           {/* Left Panel - Inputs */}
           <div className="lg:col-span-3">
             <SimulationInputPanel
-              scenarioId={config.scenarioId}
+              scenarioKey={config.scenarioKey}
               numSeasons={config.numSeasons}
               numReplications={config.numReplications}
               probabilities={config.probabilities}
@@ -128,6 +133,8 @@ const Simulator = () => {
               onRunAll={runAllScenarios}
               onReset={reset}
               isRunning={isRunning}
+              validationError={validationError}
+              isValid={!validationError}
             />
           </div>
 
@@ -149,7 +156,12 @@ const Simulator = () => {
             <div className="space-y-2">
               {/* View Toggle */}
               <div className="flex items-center justify-end gap-2">
-              <Tabs value={resultsView} onValueChange={(v) => setResultsView(v as "summary" | "analytics" | "guide")}>
+              <Tabs
+                value={resultsView}
+                onValueChange={(v) =>
+                  setResultsView(v as "summary" | "analytics" | "guide")
+                }
+              >
                   <TabsList className="h-8">
                     <TabsTrigger value="summary" className="text-xs h-7 px-2.5">
                       <Table2 className="w-3.5 h-3.5 mr-1" />
@@ -172,6 +184,8 @@ const Simulator = () => {
                 <SimulationResultsPanel
                   results={results}
                   aggregatedResults={aggregatedResults}
+                  replicationResults={replicationResults}
+                  comparisonResults={comparisonResults}
                   isRunning={isRunning}
                 />
               ) : resultsView === "analytics" ? (

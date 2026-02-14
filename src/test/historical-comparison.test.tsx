@@ -9,6 +9,7 @@ vi.mock("@/context/scenario-data", () => ({
     scenarios: [
       {
         id: 1,
+        key: "balanced",
         name: "Scenario 1",
         description: "Test scenario",
         defaultProbabilities: { low: 0, normal: 100, high: 0 },
@@ -31,7 +32,7 @@ const baseFilters: HistoryFilters = {
 };
 
 const baseConfig: SimulationConfig = {
-  scenarioId: 1,
+  scenarioKey: "balanced",
   numSeasons: 1,
   numReplications: 1,
   probabilities: { low: 0, normal: 100, high: 0 },

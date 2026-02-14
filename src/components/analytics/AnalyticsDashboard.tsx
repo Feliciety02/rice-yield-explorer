@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { SimulationRun, SimulationConfig, SavedSimulation } from "@/types/simulation";
+import { AggregatedResults, SimulationRun, SimulationConfig, SavedSimulation } from "@/types/simulation";
 import type { HistoryFilters } from "@/hooks/useSimulationHistory";
 import { YieldDistributionChart } from "./YieldDistributionChart";
 import { CumulativeProbabilityChart } from "./CumulativeProbabilityChart";
@@ -35,13 +35,7 @@ import { useScenarioData } from "@/context/scenario-data";
 interface AnalyticsDashboardProps {
   results: SimulationRun[];
   config: SimulationConfig;
-  aggregatedResults: {
-    averageYield: number;
-    minYield: number;
-    maxYield: number;
-    yieldVariability: "low" | "medium" | "high";
-    lowYieldPercent: number;
-  } | null;
+  aggregatedResults: AggregatedResults | null;
   isRunning?: boolean;
   // History props
   savedSimulations: SavedSimulation[];
@@ -142,7 +136,7 @@ export function AnalyticsDashboard({
   const exportCSV = () => {
     const headers = ["Scenario", "Season", "Rainfall", "Yield (t/ha)"];
     const rows = results.flatMap((r) => {
-      const scenario = scenarios.find((s) => s.id === r.scenarioId)?.name || `Scenario ${r.scenarioId}`;
+      const scenario = scenarios.find((s) => s.key === r.scenarioKey)?.name || r.scenarioKey;
       return r.seasons.map((s) => [
         scenario,
         s.seasonIndex + 1,
@@ -166,7 +160,7 @@ export function AnalyticsDashboard({
       generatedAt: new Date().toISOString(),
       summary: aggregatedResults,
       scenarios: results.map((r) => ({
-        scenario: scenarios.find((s) => s.id === r.scenarioId)?.name || `Scenario ${r.scenarioId}`,
+        scenario: scenarios.find((s) => s.key === r.scenarioKey)?.name || r.scenarioKey,
         metrics: {
           averageYield: r.averageYield,
           minYield: r.minYield,
@@ -196,8 +190,8 @@ export function AnalyticsDashboard({
       scenarioCatalog: scenarios,
       yieldByRainfall,
       runs: results.map((r) => ({
-        scenarioId: r.scenarioId,
-        scenario: scenarios.find((s) => s.id === r.scenarioId) ?? null,
+        scenarioKey: r.scenarioKey,
+        scenario: scenarios.find((s) => s.key === r.scenarioKey) ?? null,
         metrics: {
           averageYield: r.averageYield,
           minYield: r.minYield,

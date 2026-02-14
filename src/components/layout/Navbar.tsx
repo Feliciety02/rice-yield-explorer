@@ -4,11 +4,12 @@
  import { Button } from "@/components/ui/button";
  import { cn } from "@/lib/utils";
  
- const navLinks = [
-   { href: "/", label: "Home" },
-   { href: "/simulator", label: "Simulator" },
-   { href: "/about", label: "About" },
- ];
+const navLinks = [
+  { href: "/", label: "Home" },
+  { href: "/simulator", label: "Simulator" },
+  { href: "/model", label: "Model" },
+  { href: "/about", label: "About" },
+];
  
  export function Navbar() {
    const location = useLocation();
