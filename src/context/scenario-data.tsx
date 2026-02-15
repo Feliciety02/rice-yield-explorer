@@ -3,6 +3,25 @@ import { useQuery } from "@tanstack/react-query";
 import type { Scenario, YieldByRainfall } from "@/types/simulation";
 import { getYieldByRainfall, listScenarios } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
+import scenarioPresets from "@/shared/scenario-presets.json";
+
+const FALLBACK_SCENARIOS: Scenario[] = scenarioPresets.map((p) => ({
+  id: p.id as Scenario["id"],
+  key: p.key as Scenario["key"],
+  name: p.name,
+  description: p.description,
+  defaultProbabilities: {
+    low: Math.round(p.probabilities.low * 100),
+    normal: Math.round(p.probabilities.normal * 100),
+    high: Math.round(p.probabilities.high * 100),
+  },
+}));
+
+const FALLBACK_YIELD: YieldByRainfall = {
+  low: 2.0,
+  normal: 4.0,
+  high: 3.0,
+};
 
 type ScenarioDataState = {
   scenarios: Scenario[];
@@ -44,13 +63,14 @@ export function ScenarioDataProvider({
       ? "Failed to load yield mapping"
       : null;
 
-  const scenarios = scenariosQuery.data ?? [];
-  const yieldByRainfall = yieldQuery.data ?? null;
-  const isLoading = scenariosQuery.isPending || yieldQuery.isPending;
-  const error = [scenarioError, yieldError].filter(Boolean).join(" | ") || null;
+  const scenarios = scenariosQuery.data ?? FALLBACK_SCENARIOS;
+  const yieldByRainfall = yieldQuery.data ?? FALLBACK_YIELD;
+  const isLoading = scenariosQuery.isPending && !scenariosQuery.isError;
+  const usingFallback = !scenariosQuery.data || !yieldQuery.data;
+  const error = usingFallback ? null : [scenarioError, yieldError].filter(Boolean).join(" | ") || null;
 
   useEffect(() => {
-    if (!scenarioError) {
+    if (!scenarioError || !scenariosQuery.data) {
       lastScenarioErrorRef.current = null;
       return;
     }
@@ -63,10 +83,10 @@ export function ScenarioDataProvider({
       title: "Failed to load scenarios",
       description: scenarioError,
     });
-  }, [scenarioError]);
+  }, [scenarioError, scenariosQuery.data]);
 
   useEffect(() => {
-    if (!yieldError) {
+    if (!yieldError || !yieldQuery.data) {
       lastYieldErrorRef.current = null;
       return;
     }
@@ -79,7 +99,7 @@ export function ScenarioDataProvider({
       title: "Failed to load yield mapping",
       description: yieldError,
     });
-  }, [yieldError]);
+  }, [yieldError, yieldQuery.data]);
 
   const value = useMemo(
     () => ({ scenarios, yieldByRainfall, isLoading, error }),
