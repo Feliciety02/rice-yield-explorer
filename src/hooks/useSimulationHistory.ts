@@ -112,6 +112,8 @@ export function useSimulationHistory() {
     queryFn: () => fetchSimulations(limit, offset, filters),
     placeholderData: keepPreviousData,
     staleTime: 30_000,
+    retry: false,
+    enabled: false, // Disabled: backend API not available in preview
   });
 
   const savedSimulations = data?.items ?? [];
