@@ -16,7 +16,7 @@ PRESETS_PATH = (
 
 @lru_cache(maxsize=1)
 def load_presets() -> list[dict[str, object]]:
-    with PRESETS_PATH.open("r", encoding="utf-8") as handle:
+    with PRESETS_PATH.open("r", encoding="utf-8-sig") as handle:
         data = json.load(handle)
     if not isinstance(data, list):
         raise ValueError("scenario presets must be a list")

@@ -12,6 +12,7 @@ os.environ["DATABASE_URL"] = f"sqlite+pysqlite:///{DB_PATH.as_posix()}"
 os.environ.setdefault("CORS_ORIGINS", "http://localhost")
 
 from backend.app import main as app_main  # noqa: E402
+from backend.app import db as app_db  # noqa: E402
 
 client = TestClient(app_main.app)
 
@@ -74,6 +75,7 @@ def setup_function() -> None:
 
 
 def teardown_module() -> None:
+    app_db.engine.dispose()
     if DB_PATH.exists():
         DB_PATH.unlink()
 
