@@ -1,6 +1,7 @@
 ﻿import { useState, useCallback, useMemo, useEffect } from "react";
 import {
   AggregatedResults,
+  CompareResponse,
   ComparisonScenario,
   RainfallProbabilities,
   ReplicationResult,
